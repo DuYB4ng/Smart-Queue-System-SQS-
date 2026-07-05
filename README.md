@@ -67,4 +67,4 @@ flutter run
 5. Nhấn Play. Khi bấm nút trên Proteus, hệ thống sẽ tự động gọi khách hàng!
 
 ---
-*Developed by: **Bạn** | Designed with 🤍 by **Antigravity AI***
+*Developed and designed with 🤍 by: **Tam thái tử***
