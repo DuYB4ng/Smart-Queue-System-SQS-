@@ -1,0 +1,68 @@
+## .gitignore cho Smart Queue System (SQS)
+
+# ── Build output ─────────────────────────────────────────────
+[Bb]in/
+[Oo]bj/
+out/
+
+# ── .NET & ASP.NET ───────────────────────────────────────────
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+*.log
+*.nupkg
+*.snupkg
+project.lock.json
+project.fragment.lock.json
+artifacts/
+*.userprefs
+
+# ── EF Core migrations snapshot (giữ migration files nhưng không giữ designer) ──
+# Uncomment nếu muốn bỏ migrations
+# **/Migrations/
+
+# ── Secrets & Config nhạy cảm ────────────────────────────────
+appsettings.Production.json
+**/secrets.json
+**/.env
+**/.env.local
+
+# ── Node / ReactJS ───────────────────────────────────────────
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp/
+.pnp.js
+dist/
+.next/
+build/
+.cache/
+
+# ── Flutter / Dart ───────────────────────────────────────────
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+*.iml
+build/
+flutter_export_environment.sh
+
+# ── IDE ──────────────────────────────────────────────────────
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+!*.sln    # Giữ lại solution files
+.vscode/settings.json
+
+# ── OS ───────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Docker ───────────────────────────────────────────────────
+docker-compose.override.yml
