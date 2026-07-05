@@ -1,0 +1,51 @@
+version: '3.8'
+
+services:
+  # 1. MySQL Database
+  sqs-db:
+    image: mysql:8.0
+    container_name: sqs_mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: sqs_db
+      MYSQL_USER: sqs_user
+      MYSQL_PASSWORD: sqs_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - sqs-db-data:/var/lib/mysql
+      # Mount file script khởi tạo DB (nếu có) vào thư mục docker-entrypoint-initdb.d
+      - ./docs/init_database.sql:/docker-entrypoint-initdb.d/init_database.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - sqs_network
+
+  # 2. SQS Backend API
+  sqs-api:
+    build: 
+      context: ./SQS.API
+      dockerfile: Dockerfile
+    container_name: sqs_api
+    depends_on:
+      sqs-db:
+        condition: service_healthy
+    ports:
+      - "5000:8080" # ASP.NET Core trong container thường dùng 8080
+    environment:
+      # Ghi đè ConnectionStrings__DefaultConnection từ appsettings.json
+      - ConnectionStrings__DefaultConnection=Server=sqs-db;Database=sqs_db;User=sqs_user;Password=sqs_password;
+      # Disable COM port trong Docker để tránh lỗi
+      - SerialPort__Enabled=false
+    networks:
+      - sqs_network
+
+volumes:
+  sqs-db-data:
+
+networks:
+  sqs_network:
+    driver: bridge
