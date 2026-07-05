@@ -15,14 +15,20 @@ namespace SQS.API.Services;
 /// </summary>
 public class TicketService
 {
-    private readonly AppDbContext   _db;
-    private readonly SequenceService _sequence;
-    private readonly ILogger<TicketService> _logger;
+    private readonly AppDbContext            _db;
+    private readonly SequenceService         _sequence;
+    private readonly QueueNotificationService _notify;
+    private readonly ILogger<TicketService>  _logger;
 
-    public TicketService(AppDbContext db, SequenceService sequence, ILogger<TicketService> logger)
+    public TicketService(
+        AppDbContext db,
+        SequenceService sequence,
+        QueueNotificationService notify,
+        ILogger<TicketService> logger)
     {
         _db       = db;
         _sequence = sequence;
+        _notify   = notify;
         _logger   = logger;
     }
 
@@ -181,6 +187,11 @@ public class TicketService
         ticket.Status = TicketStatus.Canceled;
         await _db.SaveChangesAsync();
 
+        // 📡 SignalR: cập nhật hàng đợi
+        await NotifyQueueUpdatedAsync(ticket.IdService);
+        await _notify.NotifyTicketStatusChangedAsync(new TicketStatusChangedPayload(
+            ticket.Id, ticket.TicketNumber, "Canceled", null, "Bạn đã hủy số xếp hàng."));
+
         _logger.LogInformation("Customer {Id} hủy ticket {TicketId}", customerId, ticketId);
     }
 
@@ -234,17 +245,35 @@ public class TicketService
 
         await _db.SaveChangesAsync();
 
-        // Đếm số người còn lại trong hàng đợi
-        var remainingWait = await _db.Tickets.CountAsync(t =>
-            serviceIds.Contains(t.IdService) &&
-            t.TicketDate == today &&
-            t.Status     == TicketStatus.Waiting);
-
         var counter = await _db.Counters.FindAsync(counterId);
+
+        // 📡 SignalR: broadcast toàn hệ thống
+        await _notify.BroadcastTicketCalledAsync(
+            new TicketCalledPayload(
+                ticket.TicketNumber,
+                counter?.Name ?? "",
+                ticket.Service.Name,
+                ticket.Id),
+            ticket.IdService);
+
+        // 📡 Thông báo riêng cho chủ ticket
+        await _notify.NotifyTicketStatusChangedAsync(new TicketStatusChangedPayload(
+            ticket.Id, ticket.TicketNumber, "Calling",
+            counter?.Name,
+            $"Đến quầy {counter?.Name} để được phục vụ!"));
+
+        // 📡 Cập nhật số người chờ sau khi gọi
+        await NotifyQueueUpdatedAsync(ticket.IdService, ticket.TicketNumber, counter?.Name);
 
         _logger.LogInformation(
             "Staff {StaffId} gọi số {Ticket} tại quầy {Counter}",
             staffId, ticket.TicketNumber, counter?.Name);
+
+        // Đếm số người còn lại
+        var remainingWait = await _db.Tickets.CountAsync(t =>
+            serviceIds.Contains(t.IdService) &&
+            t.TicketDate == today &&
+            t.Status     == TicketStatus.Waiting);
 
         return new CallNextResponse
         {
@@ -286,6 +315,13 @@ public class TicketService
 
         await _db.SaveChangesAsync();
 
+        // 📡 SignalR: thông báo cho chủ ticket
+        await _notify.NotifyTicketStatusChangedAsync(new TicketStatusChangedPayload(
+            ticket.Id, ticket.TicketNumber, "Completed", null, "Cảm ơn bạn đã sử dụng dịch vụ!"));
+
+        // 📡 Cập nhật hàng đợi
+        await NotifyQueueUpdatedAsync(ticket.IdService);
+
         _logger.LogInformation("Staff {StaffId} hoàn thành ticket {TicketId}, KPI = {Kpi}",
             staffId, ticketId, staff.Kpi);
 
@@ -311,6 +347,12 @@ public class TicketService
 
         ticket.Status = TicketStatus.Canceled;
         await _db.SaveChangesAsync();
+
+        // 📡 SignalR
+        await _notify.NotifyTicketStatusChangedAsync(new TicketStatusChangedPayload(
+            ticket.Id, ticket.TicketNumber, "Canceled", null,
+            "Số của bạn đã bị bỏ qua do không có mặt."));
+        await NotifyQueueUpdatedAsync(ticket.IdService);
 
         _logger.LogInformation("Staff {StaffId} bỏ qua ticket {TicketId}", staffId, ticketId);
     }
@@ -344,5 +386,26 @@ public class TicketService
             EstimatedWait = estimatedWait,
             CreatedAt     = ticket.CreatedAt,
         };
+    }
+
+    /// <summary>Helper: tính waiting count và broadcast QueueUpdated.</summary>
+    private async Task NotifyQueueUpdatedAsync(
+        int serviceId,
+        string? currentCalling = null,
+        string? counterName    = null)
+    {
+        var service = await _db.Services.FindAsync(serviceId);
+        var today   = DateOnly.FromDateTime(DateTime.Today);
+
+        int waitingCount = await _db.Tickets.CountAsync(t =>
+            t.IdService  == serviceId &&
+            t.TicketDate == today &&
+            t.Status     == TicketStatus.Waiting);
+
+        await _notify.BroadcastQueueUpdatedAsync(new QueueUpdatedPayload(
+            serviceId,
+            service?.Name ?? "",
+            waitingCount,
+            currentCalling));
     }
 }

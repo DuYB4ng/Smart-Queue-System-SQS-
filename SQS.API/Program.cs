@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using SQS.API.Data;
+using SQS.API.Hubs;
 using SQS.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -96,6 +97,7 @@ builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<SequenceService>();
 builder.Services.AddScoped<TicketService>();
+builder.Services.AddScoped<QueueNotificationService>();
 
 builder.Services.AddControllers()
     .AddJsonOptions(opts =>
@@ -162,8 +164,8 @@ app.UseAuthorization();
 
 app.MapControllers();
 
-// SignalR Hub endpoint — sẽ đăng ký ở Phase 5
-// app.MapHub<QueueHub>("/hubs/queue");
+// ═ SignalR Hub endpoint ═════════════════════════════════════════════════
+app.MapHub<QueueHub>("/hubs/queue");
 
 // Health check endpoint
 app.MapGet("/health", () => Results.Ok(new
