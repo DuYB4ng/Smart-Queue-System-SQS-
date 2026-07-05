@@ -94,6 +94,8 @@ builder.Services.AddSignalR(options =>
 // Business Logic Services
 builder.Services.AddScoped<JwtService>();
 builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<SequenceService>();
+builder.Services.AddScoped<TicketService>();
 
 builder.Services.AddControllers()
     .AddJsonOptions(opts =>
