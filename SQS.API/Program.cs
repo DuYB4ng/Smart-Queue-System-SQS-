@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using SQS.API.Data;
+using SQS.API.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -89,6 +90,11 @@ builder.Services.AddSignalR(options =>
 // ════════════════════════════════════════════════════════════════
 // 5. APPLICATION SERVICES
 // ════════════════════════════════════════════════════════════════
+
+// Business Logic Services
+builder.Services.AddScoped<JwtService>();
+builder.Services.AddScoped<AuthService>();
+
 builder.Services.AddControllers()
     .AddJsonOptions(opts =>
     {
