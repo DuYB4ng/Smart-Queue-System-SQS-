@@ -23,8 +23,8 @@ Trong Phase 11, chúng ta sử dụng Proteus để mô phỏng mạch cứng Ar
   - Chân dương (+) nối vào Chân 7 (Arduino).
   - Chân âm (-) nối GND.
 - **COMPIM (Serial)**:
-  - TXD -> Chân RX (0) của Arduino.
-  - RXD -> Chân TX (1) của Arduino.
+  - TXD -> Chân TX (1) của Arduino.
+  - RXD -> Chân RX (0) của Arduino.
   - Chỉnh Baud rate của COMPIM: 9600.
   - Chỉnh Physical Port: COM4 (hoặc port tương ứng tạo bằng Virtual Serial Port Emulator).
 

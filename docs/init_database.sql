@@ -181,9 +181,7 @@ CREATE TABLE tickets (
 
     PRIMARY KEY (id),
 
-    -- Ràng buộc: guest_name bắt buộc nếu không có id_customer
-    CONSTRAINT chk_customer_or_guest
-        CHECK (id_customer IS NOT NULL OR guest_name IS NOT NULL),
+    -- (Ràng buộc guest_name hoặc id_customer được check ở tầng Application)
 
     -- Foreign keys
     CONSTRAINT fk_tickets_customer

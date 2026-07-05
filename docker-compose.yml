@@ -11,7 +11,7 @@ services:
       MYSQL_USER: sqs_user
       MYSQL_PASSWORD: sqs_password
     ports:
-      - "3306:3306"
+      - "3307:3306"
     volumes:
       - sqs-db-data:/var/lib/mysql
       # Mount file script khởi tạo DB (nếu có) vào thư mục docker-entrypoint-initdb.d
