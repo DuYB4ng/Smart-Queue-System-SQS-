@@ -18,17 +18,20 @@ public class TicketService
     private readonly AppDbContext            _db;
     private readonly SequenceService         _sequence;
     private readonly QueueNotificationService _notify;
+    private readonly SerialPortService       _serial;
     private readonly ILogger<TicketService>  _logger;
 
     public TicketService(
         AppDbContext db,
         SequenceService sequence,
         QueueNotificationService notify,
+        SerialPortService serial,
         ILogger<TicketService> logger)
     {
         _db       = db;
         _sequence = sequence;
         _notify   = notify;
+        _serial   = serial;
         _logger   = logger;
     }
 
@@ -264,6 +267,9 @@ public class TicketService
 
         // 📡 Cập nhật số người chờ sau khi gọi
         await NotifyQueueUpdatedAsync(ticket.IdService, ticket.TicketNumber, counter?.Name);
+
+        // 🔌 COM Port: gửi số lên màn hình LCD Arduino
+        await _serial.SendCallNumberAsync(ticket.TicketNumber);
 
         _logger.LogInformation(
             "Staff {StaffId} gọi số {Ticket} tại quầy {Counter}",

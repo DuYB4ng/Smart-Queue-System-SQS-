@@ -2,6 +2,7 @@ using System.Text;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using SQS.API.BackgroundServices;
 using SQS.API.Data;
 using SQS.API.Hubs;
 using SQS.API.Services;
@@ -98,6 +99,10 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddScoped<SequenceService>();
 builder.Services.AddScoped<TicketService>();
 builder.Services.AddScoped<QueueNotificationService>();
+
+// COM Port Services (Singleton — giữ kết nối COM suốt vòng đời app)
+builder.Services.AddSingleton<SerialPortService>();
+builder.Services.AddHostedService<ArduinoListenerService>();
 
 builder.Services.AddControllers()
     .AddJsonOptions(opts =>
