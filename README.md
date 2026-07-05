@@ -68,3 +68,5 @@ flutter run
 
 ---
 *Developed and designed with 🤍 by: **Tam thái tử***
+
+> *Cứ im lặng và làm, thành công sẽ đến :>*
