@@ -26,13 +26,13 @@ Trong Phase 11, chúng ta sử dụng Proteus để mô phỏng mạch cứng Ar
   - TXD -> Chân TX (1) của Arduino.
   - RXD -> Chân RX (0) của Arduino.
   - Chỉnh Baud rate của COMPIM: 9600.
-  - Chỉnh Physical Port: COM4 (hoặc port tương ứng tạo bằng Virtual Serial Port Emulator).
+  - Chỉnh Physical Port: COM2 (hoặc port tương ứng tạo bằng Virtual Serial Port Emulator).
 
 ## 3. Cách nạp code và chạy
 1. Cài đặt phần mềm tạo cổng COM ảo (VD: **Virtual Serial Port Emulator - VSPE**).
-2. Tạo 1 cặp COM port (Pair): `COM3` <-> `COM4`.
-3. Trong file cấu hình Backend (`SQS.API/appsettings.json`) hoặc WinForms Desktop, set `PortName` là `COM3`.
-4. Trong Proteus COMPIM, set `Physical Port` là `COM4`.
+2. Tạo 1 cặp COM port (Pair): `COM1` <-> `COM2`.
+3. Trong file cấu hình Backend (`SQS.API/appsettings.json`) hoặc WinForms Desktop, set `PortName` là `COM1`.
+4. Trong Proteus COMPIM, set `Physical Port` là `COM2`.
 5. Mở Arduino IDE, biên dịch file `sqs_arduino.ino` lấy đường dẫn file `.hex`.
 6. Click đúp vào Arduino trong Proteus -> Nạp file `.hex` vào mục *Program File*.
 7. Bấm **Play** (Run) trên Proteus.
