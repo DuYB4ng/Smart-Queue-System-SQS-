@@ -1,85 +1,74 @@
 using System;
-using System.IO.Ports;
+using System.Collections.Generic;
 using System.Net.Http;
-using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
-using System.Threading.Tasks;
 using System.Windows.Forms;
-using Microsoft.AspNetCore.SignalR.Client;
+using System.IO.Ports;
 
 namespace SQS.WinForms;
 
 public partial class MainForm : Form
 {
-    private HubConnection? _hubConnection;
-    private SerialPort? _serialPort;
     private readonly HttpClient _httpClient;
+    private SerialPort? _serialPort;
     
-    // UI Elements
-    private Label lblCurrentTicket = null!;
+    private TextBox txtGuestName = null!;
+    private ComboBox cbxServices = null!;
+    private Button btnGetTicket = null!;
     private Label lblStatus = null!;
-    private Label lblQueueCount = null!;
-    private Button btnCallNext = null!;
-    private Button btnComplete = null!;
-    private Button btnSkip = null!;
     private Button btnConnectCom = null!;
     private ComboBox cbxComPorts = null!;
     
-    private int _currentTicketId = 0;
-    private int _counterId = 1; // Giả sử nhân viên này ngồi quầy 1
+    // Store mapping from Service Name -> Service ID
+    private Dictionary<string, int> _serviceMap = new();
 
     public MainForm()
     {
         _httpClient = new HttpClient();
-        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", LoginForm.JwtToken);
-        
         SetupUI();
     }
 
     private void SetupUI()
     {
-        this.Text = $"Quầy {_counterId} - Nhân viên: {LoginForm.LoggedInUserName}";
+        this.Text = "KIOSK - KHÁCH HÀNG LẤY SỐ";
         this.Size = new System.Drawing.Size(600, 500);
         this.StartPosition = FormStartPosition.CenterScreen;
+        this.FormBorderStyle = FormBorderStyle.FixedDialog;
+        this.MaximizeBox = false;
 
-        // Current Ticket Display
-        Label lblTitle = new Label { Text = "ĐANG PHỤC VỤ", Location = new System.Drawing.Point(50, 30), Size = new System.Drawing.Size(500, 20), TextAlign = System.Drawing.ContentAlignment.MiddleCenter, Font = new System.Drawing.Font("Segoe UI", 12, System.Drawing.FontStyle.Bold) };
-        lblCurrentTicket = new Label { Text = "--", Location = new System.Drawing.Point(50, 60), Size = new System.Drawing.Size(500, 80), TextAlign = System.Drawing.ContentAlignment.MiddleCenter, Font = new System.Drawing.Font("Segoe UI", 48, System.Drawing.FontStyle.Bold), ForeColor = System.Drawing.Color.DodgerBlue };
+        Label lblTitle = new Label { Text = "SMART QUEUE SYSTEM", Location = new System.Drawing.Point(50, 30), Size = new System.Drawing.Size(500, 30), TextAlign = System.Drawing.ContentAlignment.MiddleCenter, Font = new System.Drawing.Font("Segoe UI", 16, System.Drawing.FontStyle.Bold) };
+        Label lblSubTitle = new Label { Text = "Vui lòng nhập thông tin để lấy số", Location = new System.Drawing.Point(50, 60), Size = new System.Drawing.Size(500, 20), TextAlign = System.Drawing.ContentAlignment.MiddleCenter };
         
-        // Queue status
-        lblQueueCount = new Label { Text = "Đang chờ: Đang tải...", Location = new System.Drawing.Point(50, 150), Size = new System.Drawing.Size(500, 20), TextAlign = System.Drawing.ContentAlignment.MiddleCenter };
+        Label lblName = new Label { Text = "Tên của bạn:", Location = new System.Drawing.Point(100, 110), Size = new System.Drawing.Size(400, 20) };
+        txtGuestName = new TextBox { Location = new System.Drawing.Point(100, 130), Size = new System.Drawing.Size(400, 30), Font = new System.Drawing.Font("Segoe UI", 12) };
 
-        // Buttons
-        btnCallNext = new Button { Text = "Gọi số tiếp theo", Location = new System.Drawing.Point(100, 200), Size = new System.Drawing.Size(400, 50), Font = new System.Drawing.Font("Segoe UI", 14, System.Drawing.FontStyle.Bold), BackColor = System.Drawing.Color.MediumSeaGreen, ForeColor = System.Drawing.Color.White, FlatStyle = FlatStyle.Flat };
-        btnCallNext.Click += BtnCallNext_Click;
+        Label lblService = new Label { Text = "Chọn dịch vụ:", Location = new System.Drawing.Point(100, 180), Size = new System.Drawing.Size(400, 20) };
+        cbxServices = new ComboBox { Location = new System.Drawing.Point(100, 200), Size = new System.Drawing.Size(400, 30), Font = new System.Drawing.Font("Segoe UI", 12), DropDownStyle = ComboBoxStyle.DropDownList };
+        
+        btnGetTicket = new Button { Text = "IN SỐ THỨ TỰ", Location = new System.Drawing.Point(100, 260), Size = new System.Drawing.Size(400, 50), Font = new System.Drawing.Font("Segoe UI", 14, System.Drawing.FontStyle.Bold), BackColor = System.Drawing.Color.DodgerBlue, ForeColor = System.Drawing.Color.White, FlatStyle = FlatStyle.Flat };
+        btnGetTicket.Click += BtnGetTicket_Click;
 
-        btnComplete = new Button { Text = "Hoàn thành", Location = new System.Drawing.Point(100, 270), Size = new System.Drawing.Size(190, 40), BackColor = System.Drawing.Color.SteelBlue, ForeColor = System.Drawing.Color.White, FlatStyle = FlatStyle.Flat, Enabled = false };
-        btnComplete.Click += BtnComplete_Click;
-
-        btnSkip = new Button { Text = "Bỏ qua", Location = new System.Drawing.Point(310, 270), Size = new System.Drawing.Size(190, 40), BackColor = System.Drawing.Color.Gray, ForeColor = System.Drawing.Color.White, FlatStyle = FlatStyle.Flat, Enabled = false };
-        btnSkip.Click += BtnSkip_Click;
-
-        // COM Port Section
-        GroupBox grpCom = new GroupBox { Text = "Kết nối Arduino (Nút cứng)", Location = new System.Drawing.Point(100, 340), Size = new System.Drawing.Size(400, 80) };
+        // Kết nối Arduino để hiển thị thông báo
+        GroupBox grpCom = new GroupBox { Text = "Bảng Điện Tử Arduino", Location = new System.Drawing.Point(100, 340), Size = new System.Drawing.Size(400, 70) };
         cbxComPorts = new ComboBox { Location = new System.Drawing.Point(20, 30), Size = new System.Drawing.Size(120, 25), DropDownStyle = ComboBoxStyle.DropDownList };
-        cbxComPorts.Items.AddRange(SerialPort.GetPortNames());
-        if (cbxComPorts.Items.Count > 0) cbxComPorts.SelectedIndex = 0;
+        cbxComPorts.Items.Add("COM2");
+        cbxComPorts.SelectedIndex = 0;
 
-        btnConnectCom = new Button { Text = "Kết nối COM", Location = new System.Drawing.Point(160, 28), Size = new System.Drawing.Size(120, 30) };
+        btnConnectCom = new Button { Text = "Kết nối", Location = new System.Drawing.Point(160, 28), Size = new System.Drawing.Size(100, 30) };
         btnConnectCom.Click += BtnConnectCom_Click;
-
         grpCom.Controls.Add(cbxComPorts);
         grpCom.Controls.Add(btnConnectCom);
 
-        lblStatus = new Label { Text = "Trạng thái: Đang kết nối server...", Location = new System.Drawing.Point(10, 430), Size = new System.Drawing.Size(560, 20), ForeColor = System.Drawing.Color.Gray };
+        lblStatus = new Label { Text = "Đang tải danh sách dịch vụ...", Location = new System.Drawing.Point(10, 430), Size = new System.Drawing.Size(560, 20), ForeColor = System.Drawing.Color.Gray };
 
         this.Controls.Add(lblTitle);
-        this.Controls.Add(lblCurrentTicket);
-        this.Controls.Add(lblQueueCount);
-        this.Controls.Add(btnCallNext);
-        this.Controls.Add(btnComplete);
-        this.Controls.Add(btnSkip);
+        this.Controls.Add(lblSubTitle);
+        this.Controls.Add(lblName);
+        this.Controls.Add(txtGuestName);
+        this.Controls.Add(lblService);
+        this.Controls.Add(cbxServices);
+        this.Controls.Add(btnGetTicket);
         this.Controls.Add(grpCom);
         this.Controls.Add(lblStatus);
     }
@@ -87,131 +76,97 @@ public partial class MainForm : Form
     protected override async void OnLoad(EventArgs e)
     {
         base.OnLoad(e);
-        await LoadMyQueueAsync();
-        await SetupSignalRAsync();
-    }
-
-    private async Task SetupSignalRAsync()
-    {
         try
         {
-            _hubConnection = new HubConnectionBuilder()
-                .WithUrl("http://localhost:5000/hubs/queue")
-                .WithAutomaticReconnect()
-                .Build();
-
-            _hubConnection.On<JsonElement>("QueueUpdated", (payload) =>
-            {
-                // Refresh queue when there's an update
-                Invoke(new Action(async () => await LoadMyQueueAsync()));
-            });
-
-            await _hubConnection.StartAsync();
-            await _hubConnection.InvokeAsync("JoinGroup", $"staff-{_counterId}");
-            
-            lblStatus.Text = "Trạng thái: Đã kết nối Server (SignalR).";
-        }
-        catch (Exception ex)
-        {
-            lblStatus.Text = "Lỗi SignalR: " + ex.Message;
-        }
-    }
-
-    private async Task LoadMyQueueAsync()
-    {
-        try
-        {
-            var response = await _httpClient.GetAsync($"http://localhost:5000/api/staff/my-queue?counterId={_counterId}");
+            var response = await _httpClient.GetAsync("http://localhost:5000/api/services");
             if (response.IsSuccessStatusCode)
             {
                 var content = await response.Content.ReadAsStringAsync();
                 var doc = JsonDocument.Parse(content);
-                var waitingCount = doc.RootElement.GetProperty("waitingCount").GetInt32();
                 
-                lblQueueCount.Text = $"Đang chờ trong hàng đợi: {waitingCount} người";
-                btnCallNext.Enabled = waitingCount > 0 || _currentTicketId == 0;
+                foreach (var el in doc.RootElement.EnumerateArray())
+                {
+                    int id = el.GetProperty("id").GetInt32();
+                    string name = el.GetProperty("name").GetString() ?? "";
+                    
+                    _serviceMap[name] = id;
+                    cbxServices.Items.Add(name);
+                }
+
+                if (cbxServices.Items.Count > 0) cbxServices.SelectedIndex = 0;
+                lblStatus.Text = "Hệ thống sẵn sàng phục vụ!";
+                
+                // Tự động kết nối COM2
+                BtnConnectCom_Click(null, EventArgs.Empty);
             }
         }
-        catch { }
+        catch (Exception ex)
+        {
+            lblStatus.Text = "Lỗi kết nối Server: " + ex.Message;
+        }
     }
 
-    private async void BtnCallNext_Click(object? sender, EventArgs e)
+    private async void BtnGetTicket_Click(object? sender, EventArgs e)
     {
-        btnCallNext.Enabled = false;
+        if (string.IsNullOrWhiteSpace(txtGuestName.Text))
+        {
+            MessageBox.Show("Vui lòng nhập tên của bạn!", "Cảnh báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        if (cbxServices.SelectedItem == null) return;
+
+        btnGetTicket.Enabled = false;
+        string selectedServiceName = cbxServices.SelectedItem.ToString()!;
+        int serviceId = _serviceMap[selectedServiceName];
+
         try
         {
-            var content = new StringContent(JsonSerializer.Serialize(new { counterId = _counterId }), Encoding.UTF8, "application/json");
-            var response = await _httpClient.PostAsync("http://localhost:5000/api/staff/call-next", content);
+            var payload = new { serviceId = serviceId, guestName = txtGuestName.Text.Trim() };
+            var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+
+            var response = await _httpClient.PostAsync("http://localhost:5000/api/tickets/guest", content);
             
             if (response.IsSuccessStatusCode)
             {
                 var resultString = await response.Content.ReadAsStringAsync();
                 var doc = JsonDocument.Parse(resultString);
                 
-                _currentTicketId = doc.RootElement.GetProperty("ticketId").GetInt32();
-                var ticketNum = doc.RootElement.GetProperty("ticketNumber").GetString();
+                string ticketNum = doc.RootElement.GetProperty("ticketNumber").GetString() ?? "";
+                string serviceName = doc.RootElement.GetProperty("serviceName").GetString() ?? "";
+                int estimatedWait = doc.RootElement.GetProperty("estimatedWait").GetInt32();
                 
-                lblCurrentTicket.Text = ticketNum;
-                btnComplete.Enabled = true;
-                btnSkip.Enabled = true;
+                // Show Ticket info
+                string msg = $"LẤY SỐ THÀNH CÔNG!\n\nSố của bạn: {ticketNum}\nDịch vụ: {serviceName}\nĐang chờ trước bạn: {estimatedWait} người.";
+                MessageBox.Show(msg, "In Số Thành Công", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 
-                SendToArduino($"CALL:{ticketNum}");
+                txtGuestName.Text = "";
+                SendToArduino($"MSG:So cua ban: {ticketNum}");
             }
             else
             {
                 var error = await response.Content.ReadAsStringAsync();
-                MessageBox.Show("Lỗi gọi số: " + error, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Lỗi lấy số: " + error, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
         catch (Exception ex)
         {
-            MessageBox.Show("Lỗi kết nối: " + ex.Message);
+            MessageBox.Show("Lỗi kết nối: " + ex.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
         finally
         {
-            await LoadMyQueueAsync();
+            btnGetTicket.Enabled = true;
         }
     }
 
-    private async void BtnComplete_Click(object? sender, EventArgs e)
-    {
-        if (_currentTicketId == 0) return;
-        try
-        {
-            await _httpClient.PostAsync($"http://localhost:5000/api/staff/complete/{_currentTicketId}", null);
-            ResetCurrentTicket();
-        }
-        catch { }
-    }
-
-    private async void BtnSkip_Click(object? sender, EventArgs e)
-    {
-        if (_currentTicketId == 0) return;
-        try
-        {
-            await _httpClient.PostAsync($"http://localhost:5000/api/staff/skip/{_currentTicketId}", null);
-            ResetCurrentTicket();
-        }
-        catch { }
-    }
-
-    private void ResetCurrentTicket()
-    {
-        _currentTicketId = 0;
-        lblCurrentTicket.Text = "--";
-        btnComplete.Enabled = false;
-        btnSkip.Enabled = false;
-        LoadMyQueueAsync().Wait();
-    }
-
-    // ── COM PORT LOGIC ────────────────────────────────────────────────
+    // ── COM PORT LOGIC (Physical Button Trigger) ──────────────────────
 
     private void BtnConnectCom_Click(object? sender, EventArgs e)
     {
         if (_serialPort != null && _serialPort.IsOpen)
         {
             _serialPort.Close();
-            btnConnectCom.Text = "Kết nối COM";
+            btnConnectCom.Text = "Kết nối";
             lblStatus.Text = "Đã ngắt kết nối Arduino.";
             return;
         }
@@ -241,15 +196,7 @@ public partial class MainForm : Form
         try
         {
             var data = _serialPort!.ReadLine().Trim();
-            if (data == "BTN:NEXT")
-            {
-                // Invoke trên UI thread
-                this.Invoke(new Action(() => 
-                {
-                    if (btnCallNext.Enabled)
-                        BtnCallNext_Click(null, EventArgs.Empty);
-                }));
-            }
+            // Không còn dùng nút bấm trên Arduino, chỉ để trống.
         }
         catch { }
     }
