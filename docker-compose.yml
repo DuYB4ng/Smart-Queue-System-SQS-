@@ -43,6 +43,19 @@ services:
     networks:
       - sqs_network
 
+  # 3. SQS Frontend Web (ReactJS)
+  sqs-web:
+    build:
+      context: ./sqs-web
+      dockerfile: Dockerfile
+    container_name: sqs_web
+    ports:
+      - "3000:3000"
+    depends_on:
+      - sqs-api
+    networks:
+      - sqs_network
+
 volumes:
   sqs-db-data:
 
