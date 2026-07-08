@@ -20,9 +20,16 @@ public class Staff
     [Column("kpi")]
     public int Kpi { get; set; } = 0;
 
+    /// <summary>Quầy/Phòng ban mà Staff được phân công.</summary>
+    [Column("counter_id")]
+    public int? CounterId { get; set; }
+
     // Navigation properties
     [ForeignKey("UserId")]
     public User User { get; set; } = null!;
+
+    [ForeignKey("CounterId")]
+    public Counter? Counter { get; set; }
 
     public ICollection<Ticket> Tickets { get; set; } = new List<Ticket>();
 }

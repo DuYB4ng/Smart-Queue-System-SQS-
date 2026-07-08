@@ -49,6 +49,7 @@ public class TicketService
 
         var ticket = new Ticket
         {
+            TicketType   = TicketType.WalkIn,
             TicketNumber = number,
             IdCustomer   = customerId,
             IdService    = serviceId,
@@ -79,6 +80,7 @@ public class TicketService
 
         var ticket = new Ticket
         {
+            TicketType   = TicketType.WalkIn,
             TicketNumber = number,
             GuestName    = guestName.Trim(),
             IdService    = serviceId,
@@ -92,6 +94,94 @@ public class TicketService
         await NotifyQueueUpdatedAsync(serviceId);
 
         return await BuildCreateResponseAsync(ticket);
+    }
+
+    // ── CREATE APPOINTMENT (Đặt lịch hẹn trước) ──────────────────────
+
+    /// <summary>
+    /// Tạo lịch hẹn trước — KHÔNG lấy số, KHÔNG vào hàng đợi.
+    /// Chỉ ghi thông tin cá nhân để Staff xử lý sau.
+    /// </summary>
+    public async Task<AppointmentResponse> CreateAppointmentAsync(
+        int serviceId,
+        DateTime appointmentDate,
+        int? customerId = null,
+        string? guestName = null,
+        string? studentId = null,
+        string? phoneNumber = null,
+        string? note = null)
+    {
+        await ValidateServiceAsync(serviceId);
+
+        if (appointmentDate.Date < DateTime.Today)
+            throw new InvalidOperationException("Ngày hẹn không được nhỏ hơn ngày hiện tại.");
+
+        var ticket = new Ticket
+        {
+            TicketType      = TicketType.Appointment,
+            TicketNumber    = null,  // Appointment không lấy số
+            IdCustomer      = customerId,
+            GuestName       = guestName?.Trim(),
+            IdService       = serviceId,
+            TicketDate      = DateTime.Today,
+            AppointmentDate = appointmentDate.Date,
+            StudentId       = studentId?.Trim(),
+            PhoneNumber     = phoneNumber?.Trim(),
+            Note            = note?.Trim(),
+            Status          = TicketStatus.Waiting,
+        };
+        _db.Tickets.Add(ticket);
+        await _db.SaveChangesAsync();
+
+        var service = await _db.Services.FindAsync(serviceId);
+
+        _logger.LogInformation(
+            "Appointment created for service {Service}, date {Date}",
+            service?.Name, appointmentDate.Date);
+
+        return new AppointmentResponse
+        {
+            TicketId        = ticket.Id,
+            ServiceName     = service?.Name ?? "",
+            AppointmentDate = appointmentDate.Date,
+            StudentId       = ticket.StudentId,
+            PhoneNumber     = ticket.PhoneNumber,
+            Note            = ticket.Note,
+            Status          = ticket.Status.ToString(),
+            CreatedAt       = ticket.CreatedAt,
+        };
+    }
+
+    /// <summary>Lấy danh sách appointment của 1 dịch vụ theo ngày.</summary>
+    public async Task<List<AppointmentResponse>> GetAppointmentsAsync(int? serviceId = null, DateTime? date = null)
+    {
+        var query = _db.Tickets
+            .Include(t => t.Service)
+            .Where(t => t.TicketType == TicketType.Appointment);
+
+        if (serviceId.HasValue)
+            query = query.Where(t => t.IdService == serviceId);
+
+        if (date.HasValue)
+            query = query.Where(t => t.AppointmentDate == date.Value.Date);
+        else
+            query = query.Where(t => t.AppointmentDate >= DateTime.Today);
+
+        return await query
+            .OrderBy(t => t.AppointmentDate)
+            .ThenBy(t => t.CreatedAt)
+            .Select(t => new AppointmentResponse
+            {
+                TicketId        = t.Id,
+                ServiceName     = t.Service.Name,
+                AppointmentDate = t.AppointmentDate!.Value,
+                StudentId       = t.StudentId,
+                PhoneNumber     = t.PhoneNumber,
+                Note            = t.Note,
+                Status          = t.Status.ToString(),
+                CreatedAt       = t.CreatedAt,
+            })
+            .ToListAsync();
     }
 
     // ── GET STATUS ─────────────────────────────────────────────────
@@ -122,6 +212,7 @@ public class TicketService
         {
             TicketId      = ticket.Id,
             TicketNumber  = ticket.TicketNumber,
+            TicketType    = ticket.TicketType.ToString(),
             ServiceName   = ticket.Service.Name,
             Status        = ticket.Status.ToString(),
             QueuePosition = position,
@@ -150,12 +241,14 @@ public class TicketService
 
         // Danh sách đang chờ
         var waiting = await _db.Tickets
-            .Where(t => t.IdService == serviceId && t.TicketDate == today && t.Status == TicketStatus.Waiting)
+            .Where(t => t.IdService == serviceId && t.TicketDate == today
+                     && t.Status == TicketStatus.Waiting
+                     && t.TicketType == TicketType.WalkIn)
             .OrderBy(t => t.CreatedAt)
             .Select(t => new QueueItem
             {
                 TicketId     = t.Id,
-                TicketNumber = t.TicketNumber,
+                TicketNumber = t.TicketNumber ?? "---",
                 CustomerName = t.IdCustomer != null ? t.Customer!.User.Name : t.GuestName!,
                 Position     = 0,  // Sẽ gán bên dưới
                 CreatedAt    = t.CreatedAt,
@@ -198,8 +291,7 @@ public class TicketService
 
         // 📡 SignalR: cập nhật hàng đợi
         await NotifyQueueUpdatedAsync(ticket.IdService);
-        await _notify.NotifyTicketStatusChangedAsync(new TicketStatusChangedPayload(
-            ticket.Id, ticket.TicketNumber, "Canceled", null, "Bạn đã hủy số xếp hàng."));
+        await _notify.NotifyTicketStatusChangedAsync(new TicketStatusChangedPayload(ticket.Id, ticket.TicketNumber ?? string.Empty, "Canceled", null, "Bạn đã hủy số xếp hàng."));
 
         _logger.LogInformation("Customer {Id} hủy ticket {TicketId}", customerId, ticketId);
     }
@@ -246,7 +338,7 @@ public class TicketService
         ticket.Status    = TicketStatus.Calling;
         ticket.IdCounter = counterId;
         ticket.IdStaff   = staffId;
-        ticket.CalledAt  = DateTime.UtcNow;
+        ticket.CalledAt  = DateTime.Now;
 
         // Cộng KPI cho staff
         var staff = await _db.Staffs.FindAsync(staffId);
@@ -258,16 +350,12 @@ public class TicketService
 
         // 📡 SignalR: broadcast toàn hệ thống
         await _notify.BroadcastTicketCalledAsync(
-            new TicketCalledPayload(
-                ticket.TicketNumber,
-                counter?.Name ?? "",
-                ticket.Service.Name,
-                ticket.Id),
+            new TicketCalledPayload(ticket.TicketNumber ?? string.Empty, counter?.Name ?? "", ticket.Service.Name, ticket.Id),
             ticket.IdService);
 
         // 📡 Thông báo riêng cho chủ ticket
         await _notify.NotifyTicketStatusChangedAsync(new TicketStatusChangedPayload(
-            ticket.Id, ticket.TicketNumber, "Calling",
+            ticket.Id, ticket.TicketNumber ?? string.Empty, "Calling",
             counter?.Name,
             $"Đến quầy {counter?.Name} để được phục vụ!"));
 
@@ -318,7 +406,7 @@ public class TicketService
             throw new UnauthorizedAccessException("Bạn không có quyền hoàn thành phiên này.");
 
         ticket.Status      = TicketStatus.Completed;
-        ticket.CompletedAt = DateTime.UtcNow;
+        ticket.CompletedAt = DateTime.Now;
 
         // Cộng KPI
         var staff = await _db.Staffs.FindAsync(staffId)
@@ -328,8 +416,7 @@ public class TicketService
         await _db.SaveChangesAsync();
 
         // 📡 SignalR: thông báo cho chủ ticket
-        await _notify.NotifyTicketStatusChangedAsync(new TicketStatusChangedPayload(
-            ticket.Id, ticket.TicketNumber, "Completed", null, "Cảm ơn bạn đã sử dụng dịch vụ!"));
+        await _notify.NotifyTicketStatusChangedAsync(new TicketStatusChangedPayload(ticket.Id, ticket.TicketNumber ?? string.Empty, "Completed", null, "Cảm ơn bạn đã sử dụng dịch vụ!"));
 
         // 📡 Cập nhật hàng đợi
         await NotifyQueueUpdatedAsync(ticket.IdService);
@@ -393,6 +480,7 @@ public class TicketService
         {
             TicketId      = ticket.Id,
             TicketNumber  = ticket.TicketNumber,
+            TicketType    = ticket.TicketType.ToString(),
             ServiceName   = service!.Name,
             ServiceCode   = service.Code,
             EstimatedWait = estimatedWait,

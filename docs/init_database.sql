@@ -70,11 +70,15 @@ CREATE TABLE staffs (
     user_id      INT UNSIGNED    NOT NULL,
     position     NVARCHAR(100)   NOT NULL DEFAULT N'Nhân viên',
     kpi          INT UNSIGNED    NOT NULL DEFAULT 0  COMMENT 'Tổng phiên đã hoàn thành',
+    counter_id   INT UNSIGNED    NULL                COMMENT 'Quầy được phân công cố định',
 
     PRIMARY KEY (user_id),
     CONSTRAINT fk_staffs_user
         FOREIGN KEY (user_id) REFERENCES users(id)
-        ON DELETE CASCADE ON UPDATE CASCADE
+        ON DELETE CASCADE ON UPDATE CASCADE,
+    CONSTRAINT fk_staffs_counter
+        FOREIGN KEY (counter_id) REFERENCES counters(id)
+        ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='Mở rộng users cho role Staff';
 
@@ -157,8 +161,11 @@ CREATE TABLE daily_sequence (
 CREATE TABLE tickets (
     id              INT UNSIGNED    NOT NULL AUTO_INCREMENT,
 
-    -- Số thứ tự dạng "001", "002", ... "999"
-    ticket_number   CHAR(3)         NOT NULL            COMMENT 'Số thứ tự trong ngày, VD: 007',
+    -- Loại ticket
+    ticket_type     ENUM('WalkIn','Appointment') NOT NULL DEFAULT 'WalkIn',
+
+    -- Số thứ tự dạng "001", "002", ... "999" (Cho WalkIn)
+    ticket_number   CHAR(3)         NULL                COMMENT 'Số thứ tự trong ngày, VD: 007',
 
     -- Người lấy số (nullable: khách vãng lai không đăng nhập)
     id_customer     INT UNSIGNED    NULL,
@@ -168,6 +175,12 @@ CREATE TABLE tickets (
     id_service      INT UNSIGNED    NOT NULL,
     id_counter      INT UNSIGNED    NULL                COMMENT 'Gán quầy khi Staff gọi số',
     id_staff        INT UNSIGNED    NULL                COMMENT 'Staff xử lý',
+
+    -- Thông tin lịch hẹn (Cho Appointment)
+    appointment_date DATE           NULL                COMMENT 'Ngày hẹn',
+    student_id      VARCHAR(20)     NULL                COMMENT 'Mã số sinh viên',
+    phone           VARCHAR(15)     NULL                COMMENT 'Số điện thoại',
+    note            NVARCHAR(500)   NULL                COMMENT 'Ghi chú',
 
     -- Thời gian
     ticket_date     DATE            NOT NULL            COMMENT 'Ngày tạo phiên',
@@ -180,8 +193,6 @@ CREATE TABLE tickets (
                                     NOT NULL DEFAULT 'Waiting',
 
     PRIMARY KEY (id),
-
-    -- (Ràng buộc guest_name hoặc id_customer được check ở tầng Application)
 
     -- Foreign keys
     CONSTRAINT fk_tickets_customer
@@ -197,7 +208,7 @@ CREATE TABLE tickets (
         FOREIGN KEY (id_staff) REFERENCES staffs(user_id)
         ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-  COMMENT='Phiên xếp hàng chính — mỗi row là 1 lượt lấy số';
+  COMMENT='Phiên xếp hàng chính — mỗi row là 1 lượt lấy số hoặc đặt hẹn';
 
 -- ============================================================
 -- 10. INDEXES — Tối ưu truy vấn
@@ -309,12 +320,12 @@ SET @s3 = (SELECT id FROM users WHERE email = 'staff3@sqs.edu.vn');
 SET @s4 = (SELECT id FROM users WHERE email = 'staff4@sqs.edu.vn');
 SET @s5 = (SELECT id FROM users WHERE email = 'staff5@sqs.edu.vn');
 
-INSERT INTO staffs (user_id, position, kpi) VALUES
-    (@s1, N'Nhân viên đăng ký học phần', 0),
-    (@s2, N'Nhân viên nhận hồ sơ',       0),
-    (@s3, N'Nhân viên thu học phí',      0),
-    (@s4, N'Nhân viên tư vấn',           0),
-    (@s5, N'Nhân viên cấp phát bằng',    0);
+INSERT INTO staffs (user_id, position, kpi, counter_id) VALUES
+    (@s1, N'Nhân viên đăng ký học phần', 0, 1),
+    (@s2, N'Nhân viên nhận hồ sơ',       0, 2),
+    (@s3, N'Nhân viên thu học phí',      0, 3),
+    (@s4, N'Nhân viên tư vấn',           0, 4),
+    (@s5, N'Nhân viên cấp phát bằng',    0, 5);
 
 -- 12.6 Tài khoản Customer mẫu (2 sinh viên)
 INSERT INTO users (name, email, password_hash, role, birthday, address) VALUES
@@ -350,7 +361,7 @@ FROM tickets t
 JOIN services s ON t.id_service = s.id
 LEFT JOIN customers c ON t.id_customer = c.user_id
 LEFT JOIN users u ON c.user_id = u.id
-WHERE t.status = 'Waiting';
+WHERE t.status = 'Waiting' AND t.ticket_type = 'WalkIn';
 
 -- View: Thống kê KPI Staff hôm nay
 CREATE VIEW v_staff_kpi_today AS

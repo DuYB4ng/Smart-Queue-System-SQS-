@@ -15,8 +15,6 @@ public class RegisterRequest
 
     [Required(ErrorMessage = "Mật khẩu không được để trống")]
     [MinLength(6, ErrorMessage = "Mật khẩu tối thiểu 6 ký tự")]
-    [RegularExpression(@"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{6,}$",
-        ErrorMessage = "Mật khẩu phải có chữ hoa, chữ thường và số")]
     public string Password { get; set; } = string.Empty;
 
     [Required(ErrorMessage = "Xác nhận mật khẩu không được để trống")]

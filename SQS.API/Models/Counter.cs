@@ -24,7 +24,7 @@ public class Counter
     public bool IsActive { get; set; } = true;
 
     [Column("created_at")]
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; } = DateTime.Now;
 
     // Navigation
     public ICollection<CounterService> CounterServices { get; set; } = new List<CounterService>();

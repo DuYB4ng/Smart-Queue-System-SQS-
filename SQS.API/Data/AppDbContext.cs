@@ -69,6 +69,13 @@ public class AppDbContext : DbContext
 
             e.Property(s => s.Kpi).HasDefaultValue(0);
             e.Property(s => s.Position).HasDefaultValue("Nhân viên");
+
+            // Staff → Counter (quầy được phân công)
+            e.HasOne(s => s.Counter)
+             .WithMany()
+             .HasForeignKey(s => s.CounterId)
+             .OnDelete(DeleteBehavior.SetNull)
+             .IsRequired(false);
         });
 
         // ── admins (1-1 với User) ──────────────────────────────────
@@ -141,6 +148,12 @@ public class AppDbContext : DbContext
             e.Property(t => t.CreatedAt)
              .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
+            // Enum TicketType → string
+            e.Property(t => t.TicketType)
+             .HasConversion<string>()
+             .HasMaxLength(20)
+             .HasDefaultValue(TicketType.WalkIn);
+
             // FK: Customer (nullable — khách vãng lai)
             e.HasOne(t => t.Customer)
              .WithMany(c => c.Tickets)
@@ -192,7 +205,7 @@ public class AppDbContext : DbContext
             .Where(e => e.State == EntityState.Modified);
 
         foreach (var entry in entries)
-            entry.Entity.UpdatedAt = DateTime.UtcNow;
+            entry.Entity.UpdatedAt = DateTime.Now;
 
         return base.SaveChangesAsync(ct);
     }

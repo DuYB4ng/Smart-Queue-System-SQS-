@@ -1,17 +1,16 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.ComponentModel.DataAnnotations;
 using SQS.API.Data;
+using SQS.API.DTOs.Tickets;
 using SQS.API.Models;
+using SQS.API.Services;
 
 namespace SQS.API.Controllers;
 
 /// <summary>
 /// Dashboard và quản lý hệ thống cho Admin.
-/// GET /api/admin/dashboard    — Thống kê tổng hợp hôm nay
-/// GET /api/admin/staff        — Danh sách Staff + KPI
-/// PUT /api/admin/staff/{id}/kpi — Reset/Chỉnh KPI
-/// GET /api/admin/tickets      — Lịch sử phiên xếp hàng (có filter)
 /// </summary>
 [ApiController]
 [Route("api/[controller]")]
@@ -20,10 +19,17 @@ namespace SQS.API.Controllers;
 public class AdminController : ControllerBase
 {
     private readonly AppDbContext _db;
+    private readonly TicketService _ticketService;
 
-    public AdminController(AppDbContext db) => _db = db;
+    public AdminController(AppDbContext db, TicketService ticketService)
+    {
+        _db = db;
+        _ticketService = ticketService;
+    }
 
-    // ── GET /api/admin/dashboard ───────────────────────────────────
+    // ══════════════════════════════════════════════════════════════
+    // DASHBOARD
+    // ══════════════════════════════════════════════════════════════
 
     /// <summary>Thống kê tổng hợp ngày hôm nay.</summary>
     [HttpGet("dashboard")]
@@ -31,14 +37,12 @@ public class AdminController : ControllerBase
     {
         var today = DateTime.Today;
 
-        // Tổng hợp theo trạng thái
         var statusCounts = await _db.Tickets
             .Where(t => t.TicketDate == today)
             .GroupBy(t => t.Status)
             .Select(g => new { Status = g.Key.ToString(), Count = g.Count() })
             .ToListAsync();
 
-        // Tổng hợp theo dịch vụ
         var byService = await _db.Tickets
             .Where(t => t.TicketDate == today)
             .GroupBy(t => new { t.IdService, t.Service.Name, t.Service.Code })
@@ -56,7 +60,6 @@ public class AdminController : ControllerBase
             .OrderBy(x => x.ServiceId)
             .ToListAsync();
 
-        // Tổng hợp KPI hôm nay theo Staff
         var topStaff = await _db.Staffs
             .Include(s => s.User)
             .Select(s => new
@@ -79,6 +82,9 @@ public class AdminController : ControllerBase
         var waitingNow      = statusCounts.FirstOrDefault(s => s.Status == "Waiting")?.Count ?? 0;
         var callingNow      = statusCounts.FirstOrDefault(s => s.Status == "Calling")?.Count ?? 0;
 
+        var appointmentCount = await _db.Tickets
+            .CountAsync(t => t.TicketType == TicketType.Appointment && t.AppointmentDate == today);
+
         return Ok(new
         {
             Date    = today,
@@ -89,6 +95,7 @@ public class AdminController : ControllerBase
                 Canceled  = canceledToday,
                 Waiting   = waitingNow,
                 Calling   = callingNow,
+                Appointments = appointmentCount,
                 CompletionRate = totalToday > 0
                     ? Math.Round((double)completedToday / totalToday * 100, 1)
                     : 0.0
@@ -98,7 +105,9 @@ public class AdminController : ControllerBase
         });
     }
 
-    // ── GET /api/admin/staff ───────────────────────────────────────
+    // ══════════════════════════════════════════════════════════════
+    // STAFF MANAGEMENT
+    // ══════════════════════════════════════════════════════════════
 
     /// <summary>Danh sách toàn bộ Staff và KPI của họ.</summary>
     [HttpGet("staff")]
@@ -108,17 +117,20 @@ public class AdminController : ControllerBase
 
         var staffList = await _db.Staffs
             .Include(s => s.User)
+            .Include(s => s.Counter)
             .Select(s => new
             {
-                StaffId   = s.UserId,
-                Name      = s.User.Name,
-                Email     = s.User.Email,
-                Position  = s.Position,
-                TotalKpi  = s.Kpi,
-                TodayKpi  = s.Tickets.Count(t =>
+                StaffId    = s.UserId,
+                Name       = s.User.Name,
+                Email      = s.User.Email,
+                Position   = s.Position,
+                CounterId  = s.CounterId,
+                CounterName = s.Counter != null ? s.Counter.Name : null,
+                TotalKpi   = s.Kpi,
+                TodayKpi   = s.Tickets.Count(t =>
                     t.Status     == TicketStatus.Completed &&
                     t.TicketDate == today),
-                IsActive  = s.User.IsActive,
+                IsActive   = s.User.IsActive,
             })
             .OrderByDescending(s => s.TotalKpi)
             .ToListAsync();
@@ -126,12 +138,32 @@ public class AdminController : ControllerBase
         return Ok(staffList);
     }
 
-    // ── PUT /api/admin/staff/{id}/kpi ─────────────────────────────
+    /// <summary>Cập nhật thông tin Staff (position, counterId).</summary>
+    [HttpPut("staff/{id:int}")]
+    public async Task<IActionResult> UpdateStaff(int id, [FromBody] UpdateStaffRequest request)
+    {
+        var staff = await _db.Staffs.Include(s => s.User).FirstOrDefaultAsync(s => s.UserId == id);
+        if (staff is null) return NotFound(new { message = "Không tìm thấy nhân viên." });
+
+        if (!string.IsNullOrWhiteSpace(request.Position))
+            staff.Position = request.Position.Trim();
+
+        if (request.CounterId.HasValue)
+        {
+            var counter = await _db.Counters.FindAsync(request.CounterId.Value);
+            if (counter is null) return BadRequest(new { message = "Quầy không tồn tại." });
+            staff.CounterId = request.CounterId.Value;
+        }
+
+        if (request.IsActive.HasValue)
+            staff.User.IsActive = request.IsActive.Value;
+
+        await _db.SaveChangesAsync();
+        return Ok(new { message = "Cập nhật thành công.", staffId = id });
+    }
 
     /// <summary>Chỉnh sửa hoặc reset KPI của 1 Staff.</summary>
     [HttpPut("staff/{id:int}/kpi")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> UpdateKpi(int id, [FromBody] UpdateKpiRequest request)
     {
         var staff = await _db.Staffs.FindAsync(id);
@@ -144,7 +176,76 @@ public class AdminController : ControllerBase
         return Ok(new { message = $"Đã cập nhật KPI từ {oldKpi} → {staff.Kpi}", kpi = staff.Kpi });
     }
 
-    // ── GET /api/admin/tickets ─────────────────────────────────────
+    // ══════════════════════════════════════════════════════════════
+    // SERVICES MANAGEMENT (CRUD)
+    // ══════════════════════════════════════════════════════════════
+
+    /// <summary>Tạo dịch vụ mới.</summary>
+    [HttpPost("services")]
+    public async Task<IActionResult> CreateService([FromBody] CreateServiceRequest request)
+    {
+        if (await _db.Services.AnyAsync(s => s.Code == request.Code.ToUpper()))
+            return Conflict(new { message = $"Mã dịch vụ '{request.Code}' đã tồn tại." });
+
+        var service = new Service
+        {
+            Name        = request.Name.Trim(),
+            Code        = request.Code.Trim().ToUpper(),
+            Description = request.Description?.Trim(),
+        };
+        _db.Services.Add(service);
+        await _db.SaveChangesAsync();
+
+        return StatusCode(StatusCodes.Status201Created, new { service.Id, service.Name, service.Code });
+    }
+
+    /// <summary>Cập nhật dịch vụ.</summary>
+    [HttpPut("services/{id:int}")]
+    public async Task<IActionResult> UpdateService(int id, [FromBody] UpdateServiceRequest request)
+    {
+        var service = await _db.Services.FindAsync(id);
+        if (service is null) return NotFound(new { message = "Dịch vụ không tồn tại." });
+
+        if (!string.IsNullOrWhiteSpace(request.Name))
+            service.Name = request.Name.Trim();
+        if (!string.IsNullOrWhiteSpace(request.Description))
+            service.Description = request.Description.Trim();
+        if (request.IsActive.HasValue)
+            service.IsActive = request.IsActive.Value;
+
+        await _db.SaveChangesAsync();
+        return Ok(new { message = "Cập nhật dịch vụ thành công.", service.Id, service.Name });
+    }
+
+    /// <summary>Xóa (vô hiệu hóa) dịch vụ.</summary>
+    [HttpDelete("services/{id:int}")]
+    public async Task<IActionResult> DeleteService(int id)
+    {
+        var service = await _db.Services.FindAsync(id);
+        if (service is null) return NotFound(new { message = "Dịch vụ không tồn tại." });
+
+        service.IsActive = false;
+        await _db.SaveChangesAsync();
+        return Ok(new { message = $"Đã vô hiệu hóa dịch vụ '{service.Name}'." });
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // APPOINTMENTS MANAGEMENT
+    // ══════════════════════════════════════════════════════════════
+
+    /// <summary>Danh sách lịch hẹn (có filter theo dịch vụ và ngày).</summary>
+    [HttpGet("appointments")]
+    public async Task<IActionResult> GetAppointments(
+        [FromQuery] int? serviceId,
+        [FromQuery] DateTime? date)
+    {
+        var appointments = await _ticketService.GetAppointmentsAsync(serviceId, date);
+        return Ok(appointments);
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // TICKETS HISTORY
+    // ══════════════════════════════════════════════════════════════
 
     /// <summary>Lịch sử phiên xếp hàng có filter ngày và trạng thái.</summary>
     [HttpGet("tickets")]
@@ -152,6 +253,7 @@ public class AdminController : ControllerBase
         [FromQuery] DateTime? date,
         [FromQuery] string?   status,
         [FromQuery] int?      serviceId,
+        [FromQuery] string?   ticketType,
         [FromQuery] int       page  = 1,
         [FromQuery] int       limit = 20)
     {
@@ -174,6 +276,9 @@ public class AdminController : ControllerBase
         if (serviceId.HasValue)
             query = query.Where(t => t.IdService == serviceId);
 
+        if (!string.IsNullOrEmpty(ticketType) && Enum.TryParse<TicketType>(ticketType, true, out var typeEnum))
+            query = query.Where(t => t.TicketType == typeEnum);
+
         var total = await query.CountAsync();
 
         var tickets = await query
@@ -184,6 +289,7 @@ public class AdminController : ControllerBase
             {
                 t.Id,
                 t.TicketNumber,
+                TicketType   = t.TicketType.ToString(),
                 ServiceName  = t.Service.Name,
                 CounterName  = t.Counter != null ? t.Counter.Name : null,
                 StaffName    = t.Staff   != null ? t.Staff.User.Name : null,
@@ -193,6 +299,10 @@ public class AdminController : ControllerBase
                 t.CreatedAt,
                 t.CalledAt,
                 t.CompletedAt,
+                t.AppointmentDate,
+                t.StudentId,
+                t.PhoneNumber,
+                t.Note,
             })
             .ToListAsync();
 
@@ -207,5 +317,25 @@ public class AdminController : ControllerBase
     }
 }
 
-/// <summary>Request body cho PUT /api/admin/staff/{id}/kpi</summary>
+// ── Admin Request DTOs ────────────────────────────────────────────
+
 public record UpdateKpiRequest(int Kpi);
+
+public record UpdateStaffRequest(
+    string? Position,
+    int?    CounterId,
+    bool?   IsActive
+);
+
+public record CreateServiceRequest(
+    [property: Required] string Name,
+    [property: Required] string Code,
+    string? Description
+);
+
+public record UpdateServiceRequest(
+    string? Name,
+    string? Description,
+    bool?   IsActive
+);
+

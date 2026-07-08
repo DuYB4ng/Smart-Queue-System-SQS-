@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using SQS.API.Data;
 using SQS.API.DTOs.Tickets;
 using SQS.API.Services;
 
@@ -19,11 +21,13 @@ namespace SQS.API.Controllers;
 public class StaffController : ControllerBase
 {
     private readonly TicketService _ticketService;
+    private readonly AppDbContext _db;
     private readonly ILogger<StaffController> _logger;
 
-    public StaffController(TicketService ticketService, ILogger<StaffController> logger)
+    public StaffController(TicketService ticketService, AppDbContext db, ILogger<StaffController> logger)
     {
         _ticketService = ticketService;
+        _db            = db;
         _logger        = logger;
     }
 
@@ -151,5 +155,42 @@ public class StaffController : ControllerBase
         {
             return NotFound(new { message = ex.Message });
         }
+    }
+
+    // ── GET /api/staff/info ──────────────────────────────────
+
+    /// <summary>Lấy thông tin staff hiện tại (position, counter...).</summary>
+    [HttpGet("info")]
+    public async Task<IActionResult> GetMyInfo()
+    {
+        var userId = JwtService.GetUserId(User);
+        var staff = await _db.Staffs
+            .Include(s => s.User)
+            .Include(s => s.Counter)
+            .FirstOrDefaultAsync(s => s.UserId == userId);
+
+        if (staff is null) return NotFound(new { message = "Không tìm thấy thông tin nhân viên." });
+
+        return Ok(new
+        {
+            StaffId     = staff.UserId,
+            Name        = staff.User.Name,
+            Position    = staff.Position,
+            CounterId   = staff.CounterId,
+            CounterName = staff.Counter?.Name,
+            Kpi         = staff.Kpi,
+        });
+    }
+
+    // ── GET /api/staff/appointments ─────────────────────────
+
+    /// <summary>Xem danh sách lịch hẹn cần xử lý.</summary>
+    [HttpGet("appointments")]
+    public async Task<IActionResult> GetAppointments(
+        [FromQuery] int? serviceId,
+        [FromQuery] DateTime? date)
+    {
+        var appointments = await _ticketService.GetAppointmentsAsync(serviceId, date);
+        return Ok(appointments);
     }
 }

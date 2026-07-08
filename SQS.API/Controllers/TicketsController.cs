@@ -80,6 +80,71 @@ public class TicketsController : ControllerBase
         }
     }
 
+    // ── POST /api/tickets/appointment ─────────────────────────────
+
+    /// <summary>Đặt lịch hẹn trước (Customer đã đăng nhập).</summary>
+    [HttpPost("appointment")]
+    [Authorize]
+    [ProducesResponseType(typeof(AppointmentResponse), StatusCodes.Status201Created)]
+    public async Task<IActionResult> CreateAppointment([FromBody] CreateAppointmentRequest request)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        try
+        {
+            var customerId = JwtService.GetUserId(User);
+            var response = await _ticketService.CreateAppointmentAsync(
+                request.ServiceId,
+                request.AppointmentDate,
+                customerId: customerId,
+                studentId: request.StudentId,
+                phoneNumber: request.PhoneNumber,
+                note: request.Note);
+            return StatusCode(StatusCodes.Status201Created, response);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    // ── POST /api/tickets/appointment/guest ───────────────────────
+
+    /// <summary>Đặt lịch hẹn trước (khách vãng lai không đăng nhập).</summary>
+    [HttpPost("appointment/guest")]
+    [ProducesResponseType(typeof(AppointmentResponse), StatusCodes.Status201Created)]
+    public async Task<IActionResult> CreateAppointmentGuest([FromBody] CreateAppointmentRequest request)
+    {
+        if (!ModelState.IsValid) return BadRequest(ModelState);
+
+        if (string.IsNullOrWhiteSpace(request.GuestName))
+            return BadRequest(new { message = "Vui lòng nhập tên để đặt hẹn." });
+
+        try
+        {
+            var response = await _ticketService.CreateAppointmentAsync(
+                request.ServiceId,
+                request.AppointmentDate,
+                guestName: request.GuestName,
+                studentId: request.StudentId,
+                phoneNumber: request.PhoneNumber,
+                note: request.Note);
+            return StatusCode(StatusCodes.Status201Created, response);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
     // ── GET /api/tickets/{id}/status ──────────────────────────────
 
     /// <summary>Xem trạng thái và vị trí trong hàng đợi của 1 ticket.</summary>
