@@ -75,10 +75,8 @@ CREATE TABLE staffs (
     PRIMARY KEY (user_id),
     CONSTRAINT fk_staffs_user
         FOREIGN KEY (user_id) REFERENCES users(id)
-        ON DELETE CASCADE ON UPDATE CASCADE,
-    CONSTRAINT fk_staffs_counter
-        FOREIGN KEY (counter_id) REFERENCES counters(id)
-        ON DELETE SET NULL ON UPDATE CASCADE
+        ON DELETE CASCADE ON UPDATE CASCADE
+    -- NOTE: fk_staffs_counter added via ALTER TABLE after counters is created
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='Mở rộng users cho role Staff';
 
@@ -124,6 +122,12 @@ CREATE TABLE counters (
     PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
   COMMENT='Các quầy phục vụ';
+
+-- Thêm FK staffs -> counters sau khi counters đã được tạo
+ALTER TABLE staffs
+    ADD CONSTRAINT fk_staffs_counter
+        FOREIGN KEY (counter_id) REFERENCES counters(id)
+        ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- ============================================================
 -- 7. counter_services — Phân công dịch vụ cho quầy (N-N)
