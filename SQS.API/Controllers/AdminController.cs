@@ -29,7 +29,7 @@ public class AdminController : ControllerBase
     [HttpGet("dashboard")]
     public async Task<IActionResult> GetDashboard()
     {
-        var today = DateOnly.FromDateTime(DateTime.Today);
+        var today = DateTime.Today;
 
         // Tổng hợp theo trạng thái
         var statusCounts = await _db.Tickets
@@ -104,7 +104,7 @@ public class AdminController : ControllerBase
     [HttpGet("staff")]
     public async Task<IActionResult> GetStaffList()
     {
-        var today = DateOnly.FromDateTime(DateTime.Today);
+        var today = DateTime.Today;
 
         var staffList = await _db.Staffs
             .Include(s => s.User)
@@ -149,7 +149,7 @@ public class AdminController : ControllerBase
     /// <summary>Lịch sử phiên xếp hàng có filter ngày và trạng thái.</summary>
     [HttpGet("tickets")]
     public async Task<IActionResult> GetTickets(
-        [FromQuery] DateOnly? date,
+        [FromQuery] DateTime? date,
         [FromQuery] string?   status,
         [FromQuery] int?      serviceId,
         [FromQuery] int       page  = 1,
@@ -166,7 +166,7 @@ public class AdminController : ControllerBase
         if (date.HasValue)
             query = query.Where(t => t.TicketDate == date.Value);
         else
-            query = query.Where(t => t.TicketDate == DateOnly.FromDateTime(DateTime.Today));
+            query = query.Where(t => t.TicketDate == DateTime.Today);
 
         if (!string.IsNullOrEmpty(status) && Enum.TryParse<TicketStatus>(status, true, out var statusEnum))
             query = query.Where(t => t.Status == statusEnum);

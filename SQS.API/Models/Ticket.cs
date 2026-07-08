@@ -45,7 +45,7 @@ public class Ticket
     // ── Thời gian ────────────────────────────────────────────────
     [Required]
     [Column("ticket_date")]
-    public DateOnly TicketDate { get; set; }
+    public DateTime TicketDate { get; set; }
 
     [Column("created_at")]
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

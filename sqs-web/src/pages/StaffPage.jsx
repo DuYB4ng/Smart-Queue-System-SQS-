@@ -12,8 +12,9 @@ const StaffPage = ({ user, onLogout }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
-  // Hardcoded counterId for demo purposes. In a real app, staff would select their counter.
-  const counterId = 1;
+  // Dynamic counterId based on user ID (Staff1..5 have User ID 2..6 and map to Counters 1..5)
+  const counterId = user ? (parseInt(user.id) - 1) : 1;
+  const serviceId = counterId; // Based on 1-1 mapping in database
 
   useEffect(() => {
     if (!user) {
@@ -25,8 +26,8 @@ const StaffPage = ({ user, onLogout }) => {
     
     signalRService.connect().then(() => {
       signalRService.joinGroup(`staff-${counterId}`);
-      // Also join service-1 to see queue updates for service 1 (assuming counter 1 handles service 1)
-      signalRService.joinGroup(`service-1`);
+      // Join the corresponding service group to receive real-time queue updates
+      signalRService.joinGroup(`service-${serviceId}`);
     });
 
     signalRService.on('QueueUpdated', (payload) => {
@@ -35,7 +36,7 @@ const StaffPage = ({ user, onLogout }) => {
 
     return () => {
       signalRService.leaveGroup(`staff-${counterId}`);
-      signalRService.leaveGroup(`service-1`);
+      signalRService.leaveGroup(`service-${serviceId}`);
       signalRService.off('QueueUpdated');
     };
   }, [user]);

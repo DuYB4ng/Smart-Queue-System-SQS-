@@ -8,7 +8,7 @@ public class UpdateProfileRequest
     [StringLength(100, MinimumLength = 2, ErrorMessage = "Họ tên từ 2-100 ký tự")]
     public string? Name { get; set; }
 
-    public DateOnly? Birthday { get; set; }
+    public DateTime? Birthday { get; set; }
 
     [StringLength(255)]
     public string? Address { get; set; }

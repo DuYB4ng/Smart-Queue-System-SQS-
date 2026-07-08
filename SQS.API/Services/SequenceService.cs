@@ -25,7 +25,7 @@ public class SequenceService
     /// </summary>
     /// <returns>Chuỗi 3 chữ số: "001", "002", ...</returns>
     /// <exception cref="InvalidOperationException">Hết số trong ngày (> 999).</exception>
-    public async Task<string> GetNextNumberAsync(DateOnly date)
+    public async Task<string> GetNextNumberAsync(DateTime date)
     {
         using var transaction = await _db.Database.BeginTransactionAsync(
             System.Data.IsolationLevel.Serializable);

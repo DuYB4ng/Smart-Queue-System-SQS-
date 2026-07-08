@@ -59,7 +59,7 @@ public class ServicesController : ControllerBase
                 s.Description,
                 WaitingCount = s.Tickets.Count(t =>
                     t.Status == Models.TicketStatus.Waiting &&
-                    t.TicketDate == DateOnly.FromDateTime(DateTime.Today)),
+                    t.TicketDate == DateTime.Today),
                 Counters = s.CounterServices
                     .Where(cs => cs.Counter.IsActive)
                     .Select(cs => new { cs.Counter.Id, cs.Counter.Name, cs.Counter.Location })

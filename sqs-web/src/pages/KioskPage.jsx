@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import signalRService from '../services/signalr';
+import Navbar from '../components/Navbar';
 
-const KioskPage = () => {
+const KioskPage = ({ user, onLogout }) => {
   const [services, setServices] = useState([]);
-  const [guestName, setGuestName] = useState('');
   const [selectedService, setSelectedService] = useState(null);
   const [ticketResult, setTicketResult] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -41,15 +41,13 @@ const KioskPage = () => {
 
   const handleCreateTicket = async (e) => {
     e.preventDefault();
-    if (!selectedService || !guestName.trim()) return;
+    if (!selectedService) return;
 
     try {
-      const res = await api.post('/tickets/guest', {
-        serviceId: selectedService.id,
-        guestName: guestName.trim()
+      const res = await api.post('/tickets', {
+        serviceId: selectedService.id
       });
       setTicketResult(res.data);
-      setGuestName('');
       setSelectedService(null);
     } catch (err) {
       setError(err.response?.data?.message || 'Lỗi khi lấy số');
@@ -60,9 +58,10 @@ const KioskPage = () => {
 
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto', padding: '2rem' }}>
-      <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center' }}>
+      <Navbar title="Kiosk Lấy Số" user={user} onLogout={onLogout} />
+      <div className="glass-panel" style={{ padding: '3rem', textAlign: 'center', marginTop: '1rem' }}>
         <h1 className="text-gradient" style={{ fontSize: '2.5rem', marginBottom: '1rem', fontWeight: 700 }}>LẤY SỐ THỨ TỰ</h1>
-        <p style={{ color: 'var(--text-secondary)', marginBottom: '3rem' }}>Vui lòng nhập tên và chọn dịch vụ bạn cần</p>
+        <p style={{ color: 'var(--text-secondary)', marginBottom: '3rem' }}>Xin chào <strong>{user?.name}</strong>, vui lòng chọn dịch vụ bạn cần</p>
 
         {error && <div style={{ color: 'var(--danger)', marginBottom: '1rem', background: 'rgba(239, 68, 68, 0.1)', padding: '1rem', borderRadius: 'var(--radius-md)' }}>{error}</div>}
 
@@ -82,17 +81,6 @@ const KioskPage = () => {
           </div>
         ) : (
           <form onSubmit={handleCreateTicket} style={{ textAlign: 'left' }}>
-            <div style={{ marginBottom: '2rem' }}>
-              <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)' }}>Họ và tên của bạn</label>
-              <input 
-                type="text" 
-                placeholder="Nhập tên..." 
-                value={guestName}
-                onChange={(e) => setGuestName(e.target.value)}
-                required
-                style={{ fontSize: '1.25rem', padding: '1rem' }}
-              />
-            </div>
 
             <label style={{ display: 'block', marginBottom: '1rem', color: 'var(--text-secondary)' }}>Chọn dịch vụ</label>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
@@ -117,17 +105,17 @@ const KioskPage = () => {
 
             <button 
               type="submit" 
-              disabled={!selectedService || !guestName.trim()}
+              disabled={!selectedService}
               style={{ 
                 width: '100%', 
                 padding: '1rem', 
-                background: (!selectedService || !guestName.trim()) ? 'var(--bg-secondary)' : 'var(--accent-gradient)',
-                color: (!selectedService || !guestName.trim()) ? 'var(--text-secondary)' : 'white',
+                background: (!selectedService) ? 'var(--bg-secondary)' : 'var(--accent-gradient)',
+                color: (!selectedService) ? 'var(--text-secondary)' : 'white',
                 borderRadius: 'var(--radius-md)',
                 fontSize: '1.25rem',
                 fontWeight: 600,
-                cursor: (!selectedService || !guestName.trim()) ? 'not-allowed' : 'pointer',
-                boxShadow: (!selectedService || !guestName.trim()) ? 'none' : 'var(--shadow-glow)'
+                cursor: (!selectedService) ? 'not-allowed' : 'pointer',
+                boxShadow: (!selectedService) ? 'none' : 'var(--shadow-glow)'
               }}
             >
               IN SỐ THỨ TỰ

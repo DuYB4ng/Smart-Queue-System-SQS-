@@ -17,7 +17,7 @@ public class DailySequence
     /// <summary>Ngày của chuỗi số (UNIQUE).</summary>
     [Required]
     [Column("seq_date")]
-    public DateOnly SeqDate { get; set; }
+    public DateTime SeqDate { get; set; }
 
     /// <summary>Số cuối cùng đã cấp trong ngày (0 = chưa có ai lấy).</summary>
     [Column("last_number")]

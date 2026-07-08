@@ -15,16 +15,7 @@
 const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 3, d7 = 2;
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
-const int BTN_NEXT_PIN = 8;
-const int BTN_RESET_PIN = 9;
-const int BUZZER_PIN = 7;
-
 // --- STATE VARIABLES ---
-int lastNextBtnState = HIGH;
-int lastResetBtnState = HIGH;
-unsigned long lastDebounceTime = 0;
-unsigned long debounceDelay = 50;
-
 String inputBuffer = "";
 bool newCommandReceived = false;
 
@@ -33,9 +24,7 @@ void setup() {
   Serial.begin(9600);
   
   // Initialize Pins
-  pinMode(BTN_NEXT_PIN, INPUT_PULLUP);
-  pinMode(BTN_RESET_PIN, INPUT_PULLUP);
-  pinMode(BUZZER_PIN, OUTPUT);
+  pinMode(7, OUTPUT); // BUZZER_PIN
   
   // Initialize LCD
   lcd.begin(16, 2);
@@ -77,31 +66,7 @@ void loop() {
     newCommandReceived = false;
   }
 
-  // 3. READ BUTTONS (With Debounce)
-  int nextBtnState = digitalRead(BTN_NEXT_PIN);
-  int resetBtnState = digitalRead(BTN_RESET_PIN);
-  
-  if (nextBtnState != lastNextBtnState || resetBtnState != lastResetBtnState) {
-    lastDebounceTime = millis();
-  }
-
-  if ((millis() - lastDebounceTime) > debounceDelay) {
-    // Check Next Button (Trigger on LOW -> HIGH release or LOW press)
-    // Here we trigger on LOW (pressed)
-    if (nextBtnState == LOW && lastNextBtnState == HIGH) {
-      Serial.println("BTN:NEXT");
-      beep(50); // Small feedback click
-    }
-    
-    // Check Reset Button
-    if (resetBtnState == LOW && lastResetBtnState == HIGH) {
-      Serial.println("BTN:RESET");
-      beep(50);
-    }
-  }
-
-  lastNextBtnState = nextBtnState;
-  lastResetBtnState = resetBtnState;
+  // 3. NO BUTTONS IN THIS VERSION
 }
 
 // --- HELPER FUNCTIONS ---
@@ -147,7 +112,7 @@ void processCommand(String cmd) {
 }
 
 void beep(int durationMs) {
-  digitalWrite(BUZZER_PIN, HIGH);
+  digitalWrite(7, HIGH); // BUZZER_PIN
   delay(durationMs);
-  digitalWrite(BUZZER_PIN, LOW);
+  digitalWrite(7, LOW);
 }

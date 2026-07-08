@@ -23,7 +23,7 @@ public class RegisterRequest
     [Compare("Password", ErrorMessage = "Xác nhận mật khẩu không khớp")]
     public string ConfirmPassword { get; set; } = string.Empty;
 
-    public DateOnly? Birthday { get; set; }
+    public DateTime? Birthday { get; set; }
 
     [StringLength(255)]
     public string? Address { get; set; }

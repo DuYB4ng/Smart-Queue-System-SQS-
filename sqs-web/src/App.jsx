@@ -7,14 +7,10 @@ import AdminPage from './pages/AdminPage';
 import LoginPage from './pages/LoginPage';
 
 function App() {
-  const [user, setUser] = useState(null);
-
-  useEffect(() => {
-    // Check local storage for token on mount
+  const [user, setUser] = useState(() => {
     const token = localStorage.getItem('token');
     if (token) {
       try {
-        // Basic JWT decode to get role (in a real app, validate token properly)
         const base64Url = token.split('.')[1];
         const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
         const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
@@ -22,15 +18,20 @@ function App() {
         }).join(''));
         const decoded = JSON.parse(jsonPayload);
         
-        setUser({
-          id: decoded.nameid,
-          name: decoded.unique_name,
-          role: decoded.role
-        });
+        return {
+          id: decoded.nameid || decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"],
+          name: decoded.name || decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"],
+          role: decoded.role || decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"]
+        };
       } catch (e) {
         localStorage.removeItem('token');
       }
     }
+    return null;
+  });
+
+  useEffect(() => {
+    // Token validation could happen here
   }, []);
 
   const handleLogout = () => {
@@ -41,7 +42,11 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<KioskPage />} />
+        <Route path="/" element={
+          user 
+            ? <KioskPage user={user} onLogout={handleLogout} /> 
+            : <Navigate to="/login" />
+        } />
         <Route path="/display" element={<DisplayPage />} />
         <Route path="/login" element={<LoginPage onLoginSuccess={setUser} />} />
         

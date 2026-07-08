@@ -18,6 +18,6 @@ public class UserDto
     public string   Name     { get; set; } = string.Empty;
     public string   Email    { get; set; } = string.Empty;
     public UserRole Role     { get; set; }
-    public DateOnly? Birthday { get; set; }
+    public DateTime? Birthday { get; set; }
     public string?  Address  { get; set; }
 }

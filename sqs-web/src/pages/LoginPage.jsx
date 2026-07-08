@@ -102,9 +102,10 @@ const LoginPage = ({ onLoginSuccess }) => {
         </form>
         
         <div style={{ marginTop: '2rem', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-          <p>Tài khoản Test:</p>
-          <p>Admin: admin@sqs.com / 123456</p>
-          <p>Staff: staff1@sqs.com / 123456</p>
+          <p>Danh sách tài khoản Test:</p>
+          <p>Khách hàng: sv1@sqs.edu.vn (Mật khẩu: sv123)</p>
+          <p>Nhân viên: staff1@sqs.edu.vn -{'>'} staff5@sqs.edu.vn (Mật khẩu: staff123)</p>
+          <p>Admin: admin@sqs.edu.vn (Mật khẩu: admin123)</p>
         </div>
       </div>
     </div>

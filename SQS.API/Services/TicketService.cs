@@ -44,7 +44,7 @@ public class TicketService
     {
         await ValidateServiceAsync(serviceId);
 
-        var today  = DateOnly.FromDateTime(DateTime.Today);
+        var today  = DateTime.Today;
         var number = await _sequence.GetNextNumberAsync(today);
 
         var ticket = new Ticket
@@ -57,6 +57,9 @@ public class TicketService
         };
         _db.Tickets.Add(ticket);
         await _db.SaveChangesAsync();
+
+        // Cập nhật lên màn hình Display
+        await NotifyQueueUpdatedAsync(serviceId);
 
         return await BuildCreateResponseAsync(ticket);
     }
@@ -71,7 +74,7 @@ public class TicketService
 
         await ValidateServiceAsync(serviceId);
 
-        var today  = DateOnly.FromDateTime(DateTime.Today);
+        var today  = DateTime.Today;
         var number = await _sequence.GetNextNumberAsync(today);
 
         var ticket = new Ticket
@@ -84,6 +87,9 @@ public class TicketService
         };
         _db.Tickets.Add(ticket);
         await _db.SaveChangesAsync();
+
+        // Cập nhật lên màn hình Display
+        await NotifyQueueUpdatedAsync(serviceId);
 
         return await BuildCreateResponseAsync(ticket);
     }
@@ -133,7 +139,7 @@ public class TicketService
         var service = await _db.Services.FindAsync(serviceId)
             ?? throw new KeyNotFoundException("Dịch vụ không tồn tại.");
 
-        var today = DateOnly.FromDateTime(DateTime.Today);
+        var today = DateTime.Today;
 
         // Số đang gọi
         var calling = await _db.Tickets
@@ -146,7 +152,7 @@ public class TicketService
         var waiting = await _db.Tickets
             .Where(t => t.IdService == serviceId && t.TicketDate == today && t.Status == TicketStatus.Waiting)
             .OrderBy(t => t.CreatedAt)
-            .Select((t, idx) => new QueueItem
+            .Select(t => new QueueItem
             {
                 TicketId     = t.Id,
                 TicketNumber = t.TicketNumber,
@@ -221,7 +227,7 @@ public class TicketService
         if (hasActiveCalling)
             throw new InvalidOperationException("Quầy đang có khách. Vui lòng hoàn thành hoặc bỏ qua trước.");
 
-        var today = DateOnly.FromDateTime(DateTime.Today);
+        var today = DateTime.Today;
 
         // Lấy ticket Waiting cũ nhất (FIFO) — ưu tiên theo thời gian tạo
         var ticket = await _db.Tickets
@@ -401,12 +407,21 @@ public class TicketService
         string? counterName    = null)
     {
         var service = await _db.Services.FindAsync(serviceId);
-        var today   = DateOnly.FromDateTime(DateTime.Today);
+        var today   = DateTime.Today;
 
         int waitingCount = await _db.Tickets.CountAsync(t =>
             t.IdService  == serviceId &&
             t.TicketDate == today &&
             t.Status     == TicketStatus.Waiting);
+
+        if (currentCalling == null)
+        {
+            var calling = await _db.Tickets
+                .Where(t => t.IdService == serviceId && t.TicketDate == today && t.Status == TicketStatus.Calling)
+                .OrderByDescending(t => t.CalledAt)
+                .FirstOrDefaultAsync();
+            currentCalling = calling?.TicketNumber ?? "--";
+        }
 
         await _notify.BroadcastQueueUpdatedAsync(new QueueUpdatedPayload(
             serviceId,

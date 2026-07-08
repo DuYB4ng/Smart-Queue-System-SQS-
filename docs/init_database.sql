@@ -286,8 +286,8 @@ INSERT INTO users (name, email, password_hash, role, birthday, address) VALUES
     (
         N'Quản trị viên SQS',
         'admin@sqs.edu.vn',
-        -- BCrypt hash của 'Admin@123' (rounds=10) — sẽ được verify bởi ASP.NET Identity
-        '$2a$10$TzP9dkd7h8XZoD3j5I7StuHnjJvYbvj7i.Fz7oFWmMVEzQXlnHOCq',
+        -- BCrypt hash của 'admin123'
+        '$2a$10$i8/0Cf1dCIt6wX2dZ94vo.pXr6kni.IGNsRL0lVurpliQbHWVf3pK',
         'Admin',
         '1985-01-01',
         N'Trường Đại học'
@@ -296,11 +296,11 @@ INSERT INTO admins (user_id) VALUES (LAST_INSERT_ID());
 
 -- 12.5 Tài khoản Staff (5 nhân viên)
 INSERT INTO users (name, email, password_hash, role, birthday, address) VALUES
-    (N'Nguyễn Thị Lan',    'staff1@sqs.edu.vn', '$2a$10$TzP9dkd7h8XZoD3j5I7StuHnjJvYbvj7i.Fz7oFWmMVEzQXlnHOCq', 'Staff', '1995-03-10', N'TP.HCM'),
-    (N'Trần Văn Minh',     'staff2@sqs.edu.vn', '$2a$10$TzP9dkd7h8XZoD3j5I7StuHnjJvYbvj7i.Fz7oFWmMVEzQXlnHOCq', 'Staff', '1993-07-22', N'TP.HCM'),
-    (N'Lê Thị Hoa',        'staff3@sqs.edu.vn', '$2a$10$TzP9dkd7h8XZoD3j5I7StuHnjJvYbvj7i.Fz7oFWmMVEzQXlnHOCq', 'Staff', '1997-11-05', N'Bình Dương'),
-    (N'Phạm Quốc Dũng',    'staff4@sqs.edu.vn', '$2a$10$TzP9dkd7h8XZoD3j5I7StuHnjJvYbvj7i.Fz7oFWmMVEzQXlnHOCq', 'Staff', '1994-05-18', N'Đồng Nai'),
-    (N'Hoàng Thị Mai',     'staff5@sqs.edu.vn', '$2a$10$TzP9dkd7h8XZoD3j5I7StuHnjJvYbvj7i.Fz7oFWmMVEzQXlnHOCq', 'Staff', '1996-09-30', N'TP.HCM');
+    (N'Nguyễn Thị Lan',    'staff1@sqs.edu.vn', '$2a$10$JkL0YXi3cYhYfjlXuAqvsuaWR9yBTJ5D/IpLswrjJH7GyHV7pbZf2', 'Staff', '1995-03-10', N'TP.HCM'),
+    (N'Trần Văn Minh',     'staff2@sqs.edu.vn', '$2a$10$JkL0YXi3cYhYfjlXuAqvsuaWR9yBTJ5D/IpLswrjJH7GyHV7pbZf2', 'Staff', '1993-07-22', N'TP.HCM'),
+    (N'Lê Thị Hoa',        'staff3@sqs.edu.vn', '$2a$10$JkL0YXi3cYhYfjlXuAqvsuaWR9yBTJ5D/IpLswrjJH7GyHV7pbZf2', 'Staff', '1997-11-05', N'Bình Dương'),
+    (N'Phạm Quốc Dũng',    'staff4@sqs.edu.vn', '$2a$10$JkL0YXi3cYhYfjlXuAqvsuaWR9yBTJ5D/IpLswrjJH7GyHV7pbZf2', 'Staff', '1994-05-18', N'Đồng Nai'),
+    (N'Hoàng Thị Mai',     'staff5@sqs.edu.vn', '$2a$10$JkL0YXi3cYhYfjlXuAqvsuaWR9yBTJ5D/IpLswrjJH7GyHV7pbZf2', 'Staff', '1996-09-30', N'TP.HCM');
 
 -- Lấy id của 5 staff vừa insert
 SET @s1 = (SELECT id FROM users WHERE email = 'staff1@sqs.edu.vn');
@@ -311,22 +311,20 @@ SET @s5 = (SELECT id FROM users WHERE email = 'staff5@sqs.edu.vn');
 
 INSERT INTO staffs (user_id, position, kpi) VALUES
     (@s1, N'Nhân viên đăng ký học phần', 0),
-    (@s2, N'Nhân viên hành chính',       0),
-    (@s3, N'Nhân viên tài chính',        0),
+    (@s2, N'Nhân viên nhận hồ sơ',       0),
+    (@s3, N'Nhân viên thu học phí',      0),
     (@s4, N'Nhân viên tư vấn',           0),
-    (@s5, N'Nhân viên hành chính',       0);
+    (@s5, N'Nhân viên cấp phát bằng',    0);
 
--- 12.6 Tài khoản Customer mẫu (3 sinh viên)
+-- 12.6 Tài khoản Customer mẫu (2 sinh viên)
 INSERT INTO users (name, email, password_hash, role, birthday, address) VALUES
-    (N'Nguyễn Văn An',  'sv001@sqs.edu.vn', '$2a$10$TzP9dkd7h8XZoD3j5I7StuHnjJvYbvj7i.Fz7oFWmMVEzQXlnHOCq', 'Customer', '2003-02-14', N'TP.HCM'),
-    (N'Trần Thị Bích',  'sv002@sqs.edu.vn', '$2a$10$TzP9dkd7h8XZoD3j5I7StuHnjJvYbvj7i.Fz7oFWmMVEzQXlnHOCq', 'Customer', '2004-06-20', N'Hà Nội'),
-    (N'Lê Minh Cường',  'sv003@sqs.edu.vn', '$2a$10$TzP9dkd7h8XZoD3j5I7StuHnjJvYbvj7i.Fz7oFWmMVEzQXlnHOCq', 'Customer', '2002-12-01', N'Đà Nẵng');
+    (N'Nguyễn Văn An',  'sv1@sqs.edu.vn', '$2a$10$IM94p7dOP..KCZ69z2JJ7.wCWab.0HU1fCE/ieibL8LpAiId8iNrq', 'Customer', '2003-02-14', N'TP.HCM'),
+    (N'Trần Thị Bích',  'sv2@sqs.edu.vn', '$2a$10$IM94p7dOP..KCZ69z2JJ7.wCWab.0HU1fCE/ieibL8LpAiId8iNrq', 'Customer', '2004-06-20', N'Hà Nội');
 
-SET @c1 = (SELECT id FROM users WHERE email = 'sv001@sqs.edu.vn');
-SET @c2 = (SELECT id FROM users WHERE email = 'sv002@sqs.edu.vn');
-SET @c3 = (SELECT id FROM users WHERE email = 'sv003@sqs.edu.vn');
+SET @c1 = (SELECT id FROM users WHERE email = 'sv1@sqs.edu.vn');
+SET @c2 = (SELECT id FROM users WHERE email = 'sv2@sqs.edu.vn');
 
-INSERT INTO customers (user_id) VALUES (@c1), (@c2), (@c3);
+INSERT INTO customers (user_id) VALUES (@c1), (@c2);
 
 -- ============================================================
 -- 13. VIEWS — Truy vấn nhanh cho Frontend
@@ -407,7 +405,7 @@ CREATE EVENT IF NOT EXISTS evt_cleanup_old_sequences
 SELECT 'Database SQS khởi tạo thành công!' AS status;
 
 SELECT
-    'users'            AS tbl, COUNT(*) AS rows FROM users    UNION ALL
+    'users'            AS tbl, COUNT(*) AS row_count FROM users    UNION ALL
 SELECT 'customers',            COUNT(*)         FROM customers UNION ALL
 SELECT 'staffs',               COUNT(*)         FROM staffs    UNION ALL
 SELECT 'admins',               COUNT(*)         FROM admins    UNION ALL

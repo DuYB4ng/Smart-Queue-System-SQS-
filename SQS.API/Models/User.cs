@@ -30,7 +30,7 @@ public class User
     public string PasswordHash { get; set; } = string.Empty;
 
     [Column("birthday")]
-    public DateOnly? Birthday { get; set; }
+    public DateTime? Birthday { get; set; }
 
     [Column("address")]
     [StringLength(255)]
