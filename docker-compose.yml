@@ -10,6 +10,7 @@ services:
       MYSQL_DATABASE: sqs_db
       MYSQL_USER: sqs_user
       MYSQL_PASSWORD: sqs_password
+      TZ: Asia/Ho_Chi_Minh
     ports:
       - "3307:3306"
     volumes:
@@ -40,6 +41,7 @@ services:
       - ConnectionStrings__DefaultConnection=Server=sqs-db;Database=sqs_db;User=sqs_user;Password=sqs_password;
       # Disable COM port trong Docker để tránh lỗi
       - SerialPort__Enabled=false
+      - TZ=Asia/Ho_Chi_Minh
     networks:
       - sqs_network
 
@@ -51,6 +53,8 @@ services:
     container_name: sqs_web
     ports:
       - "3000:3000"
+    environment:
+      - TZ=Asia/Ho_Chi_Minh
     depends_on:
       - sqs-api
     networks:
