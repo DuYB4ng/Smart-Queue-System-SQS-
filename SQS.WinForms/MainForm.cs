@@ -1,25 +1,22 @@
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Windows.Forms;
-using System.IO.Ports;
 
 namespace SQS.WinForms;
 
 public partial class MainForm : Form
 {
     private readonly HttpClient _httpClient;
-    private SerialPort? _serialPort;
-    
-    private TextBox txtGuestName = null!;
-    private ComboBox cbxServices = null!;
-    private Button btnGetTicket = null!;
+
+    private Panel pnlServiceButtons = null!;
     private Label lblStatus = null!;
-    private Button btnConnectCom = null!;
-    private ComboBox cbxComPorts = null!;
-    
+    private Label lblTitle = null!;
+    private Label lblSubTitle = null!;
+
     // Store mapping from Service Name -> Service ID
     private Dictionary<string, int> _serviceMap = new();
 
@@ -32,50 +29,77 @@ public partial class MainForm : Form
     private void SetupUI()
     {
         this.Text = "KIOSK - KHÁCH HÀNG LẤY SỐ";
-        this.Size = new System.Drawing.Size(600, 500);
+        this.Size = new Size(820, 700);
+        this.MinimumSize = new Size(820, 600);
         this.StartPosition = FormStartPosition.CenterScreen;
         this.FormBorderStyle = FormBorderStyle.FixedDialog;
         this.MaximizeBox = false;
+        this.BackColor = Color.FromArgb(245, 247, 250);
 
-        Label lblTitle = new Label { Text = "SMART QUEUE SYSTEM", Location = new System.Drawing.Point(50, 30), Size = new System.Drawing.Size(500, 30), TextAlign = System.Drawing.ContentAlignment.MiddleCenter, Font = new System.Drawing.Font("Segoe UI", 16, System.Drawing.FontStyle.Bold) };
-        Label lblSubTitle = new Label { Text = "Vui lòng nhập thông tin để lấy số", Location = new System.Drawing.Point(50, 60), Size = new System.Drawing.Size(500, 20), TextAlign = System.Drawing.ContentAlignment.MiddleCenter };
-        
-        Label lblName = new Label { Text = "Tên của bạn:", Location = new System.Drawing.Point(100, 110), Size = new System.Drawing.Size(400, 20) };
-        txtGuestName = new TextBox { Location = new System.Drawing.Point(100, 130), Size = new System.Drawing.Size(400, 30), Font = new System.Drawing.Font("Segoe UI", 12) };
+        // ── Tiêu đề ─────────────────────────────────────────────────────
+        lblTitle = new Label
+        {
+            Text = "SMART QUEUE SYSTEM",
+            Location = new Point(40, 30),
+            Size = new Size(730, 50),
+            TextAlign = ContentAlignment.MiddleCenter,
+            Font = new Font("Segoe UI", 26, FontStyle.Bold),
+            ForeColor = Color.FromArgb(30, 64, 175)
+        };
 
-        Label lblService = new Label { Text = "Chọn dịch vụ:", Location = new System.Drawing.Point(100, 180), Size = new System.Drawing.Size(400, 20) };
-        cbxServices = new ComboBox { Location = new System.Drawing.Point(100, 200), Size = new System.Drawing.Size(400, 30), Font = new System.Drawing.Font("Segoe UI", 12), DropDownStyle = ComboBoxStyle.DropDownList };
-        
-        btnGetTicket = new Button { Text = "IN SỐ THỨ TỰ", Location = new System.Drawing.Point(100, 260), Size = new System.Drawing.Size(400, 50), Font = new System.Drawing.Font("Segoe UI", 14, System.Drawing.FontStyle.Bold), BackColor = System.Drawing.Color.DodgerBlue, ForeColor = System.Drawing.Color.White, FlatStyle = FlatStyle.Flat };
-        btnGetTicket.Click += BtnGetTicket_Click;
+        lblSubTitle = new Label
+        {
+            Text = "Chọn dịch vụ để lấy số thứ tự",
+            Location = new Point(40, 82),
+            Size = new Size(730, 28),
+            TextAlign = ContentAlignment.MiddleCenter,
+            Font = new Font("Segoe UI", 13, FontStyle.Regular),
+            ForeColor = Color.FromArgb(100, 116, 139)
+        };
 
-        // Kết nối Arduino để hiển thị thông báo
-        GroupBox grpCom = new GroupBox { Text = "Bảng Điện Tử Arduino", Location = new System.Drawing.Point(100, 340), Size = new System.Drawing.Size(400, 70) };
-        cbxComPorts = new ComboBox { Location = new System.Drawing.Point(20, 30), Size = new System.Drawing.Size(120, 25), DropDownStyle = ComboBoxStyle.DropDownList };
-        cbxComPorts.Items.Add("COM2");
-        cbxComPorts.SelectedIndex = 0;
+        // ── Separator line ───────────────────────────────────────────────
+        Panel separator = new Panel
+        {
+            Location = new Point(40, 120),
+            Size = new Size(730, 2),
+            BackColor = Color.FromArgb(226, 232, 240)
+        };
 
-        btnConnectCom = new Button { Text = "Kết nối", Location = new System.Drawing.Point(160, 28), Size = new System.Drawing.Size(100, 30) };
-        btnConnectCom.Click += BtnConnectCom_Click;
-        grpCom.Controls.Add(cbxComPorts);
-        grpCom.Controls.Add(btnConnectCom);
+        // ── Panel chứa các nút dịch vụ ──────────────────────────────────
+        pnlServiceButtons = new Panel
+        {
+            Location = new Point(40, 132),
+            Size = new Size(730, 490),
+            AutoScroll = true,
+            BackColor = Color.Transparent
+        };
 
-        lblStatus = new Label { Text = "Đang tải danh sách dịch vụ...", Location = new System.Drawing.Point(10, 430), Size = new System.Drawing.Size(560, 20), ForeColor = System.Drawing.Color.Gray };
+        // ── Label trạng thái ────────────────────────────────────────────
+        lblStatus = new Label
+        {
+            Text = "⏳ Đang tải danh sách dịch vụ...",
+            Location = new Point(10, 640),
+            Size = new Size(790, 24),
+            Font = new Font("Segoe UI", 10),
+            ForeColor = Color.FromArgb(100, 116, 139),
+            TextAlign = ContentAlignment.MiddleCenter
+        };
 
         this.Controls.Add(lblTitle);
         this.Controls.Add(lblSubTitle);
-        this.Controls.Add(lblName);
-        this.Controls.Add(txtGuestName);
-        this.Controls.Add(lblService);
-        this.Controls.Add(cbxServices);
-        this.Controls.Add(btnGetTicket);
-        this.Controls.Add(grpCom);
+        this.Controls.Add(separator);
+        this.Controls.Add(pnlServiceButtons);
         this.Controls.Add(lblStatus);
     }
 
     protected override async void OnLoad(EventArgs e)
     {
         base.OnLoad(e);
+        await LoadServicesAsync();
+    }
+
+    private async System.Threading.Tasks.Task LoadServicesAsync()
+    {
         try
         {
             var response = await _httpClient.GetAsync("http://localhost:5000/api/services");
@@ -83,141 +107,236 @@ public partial class MainForm : Form
             {
                 var content = await response.Content.ReadAsStringAsync();
                 var doc = JsonDocument.Parse(content);
-                
+
+                var services = new List<(int Id, string Name, string? Code)>();
                 foreach (var el in doc.RootElement.EnumerateArray())
                 {
                     int id = el.GetProperty("id").GetInt32();
                     string name = el.GetProperty("name").GetString() ?? "";
-                    
+                    string? code = el.TryGetProperty("code", out var cp) ? cp.GetString() : null;
                     _serviceMap[name] = id;
-                    cbxServices.Items.Add(name);
+                    services.Add((id, name, code));
                 }
 
-                if (cbxServices.Items.Count > 0) cbxServices.SelectedIndex = 0;
-                lblStatus.Text = "Hệ thống sẵn sàng phục vụ!";
-                
-                // Tự động kết nối COM2
-                BtnConnectCom_Click(null, EventArgs.Empty);
+                BuildServiceButtons(services);
+                lblStatus.Text = "✅ Hệ thống sẵn sàng phục vụ!";
+                lblStatus.ForeColor = Color.FromArgb(22, 163, 74);
+            }
+            else
+            {
+                lblStatus.Text = "❌ Không tải được danh sách dịch vụ.";
+                lblStatus.ForeColor = Color.Crimson;
             }
         }
         catch (Exception ex)
         {
-            lblStatus.Text = "Lỗi kết nối Server: " + ex.Message;
+            lblStatus.Text = "❌ Lỗi kết nối Server: " + ex.Message;
+            lblStatus.ForeColor = Color.Crimson;
+
+            // Hiển thị nút dịch vụ mẫu để test UI khi không có server
+            BuildServiceButtons(new List<(int, string, string?)>
+            {
+                (1, "Đăng ký học phần", "DK"),
+                (2, "Nộp hồ sơ", "HS"),
+                (3, "Thanh toán học phí", "HP"),
+                (4, "Tư vấn tuyển sinh", "TV"),
+                (5, "Nhận bằng / Giấy tờ", "GB"),
+            });
         }
     }
 
-    private async void BtnGetTicket_Click(object? sender, EventArgs e)
+    private void BuildServiceButtons(List<(int Id, string Name, string? Code)> services)
     {
-        if (string.IsNullOrWhiteSpace(txtGuestName.Text))
+        pnlServiceButtons.Controls.Clear();
+
+        // Màu sắc cho các nút
+        Color[] palette = new Color[]
         {
-            MessageBox.Show("Vui lòng nhập tên của bạn!", "Cảnh báo", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            return;
+            Color.FromArgb(37, 99, 235),   // blue
+            Color.FromArgb(5, 150, 105),   // green
+            Color.FromArgb(217, 119, 6),   // amber
+            Color.FromArgb(220, 38, 38),   // red
+            Color.FromArgb(124, 58, 237),  // violet
+            Color.FromArgb(14, 165, 233),  // sky
+        };
+
+        int btnWidth = 330;
+        int btnHeight = 100;
+        int hGap = 20;
+        int vGap = 16;
+        int cols = 2;
+        int panelWidth = pnlServiceButtons.Width;
+
+        for (int i = 0; i < services.Count; i++)
+        {
+            var svc = services[i];
+            int col = i % cols;
+            int row = i / cols;
+
+            int x = col * (btnWidth + hGap);
+            int y = row * (btnHeight + vGap);
+
+            // Center nếu số lẻ và đây là nút cuối
+            if (services.Count % 2 != 0 && i == services.Count - 1)
+                x = (panelWidth - btnWidth) / 2;
+
+            Color btnColor = palette[i % palette.Length];
+
+            Button btn = new Button
+            {
+                Text = (svc.Code != null ? $"[{svc.Code}]\n" : "") + svc.Name,
+                Location = new Point(x, y),
+                Size = new Size(btnWidth, btnHeight),
+                Font = new Font("Segoe UI", 13, FontStyle.Bold),
+                ForeColor = Color.White,
+                BackColor = btnColor,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand,
+                Tag = svc.Id,
+                TextAlign = ContentAlignment.MiddleCenter
+            };
+            btn.FlatAppearance.BorderSize = 0;
+            btn.FlatAppearance.MouseOverBackColor = ControlPaint.Dark(btnColor, 0.1f);
+            btn.FlatAppearance.MouseDownBackColor = ControlPaint.Dark(btnColor, 0.2f);
+
+            // Bo góc thông qua Paint event
+            btn.Paint += (s, pe) =>
+            {
+                pe.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            };
+
+            btn.Click += ServiceButton_Click;
+            pnlServiceButtons.Controls.Add(btn);
         }
 
-        if (cbxServices.SelectedItem == null) return;
+        // Điều chỉnh size form theo số dịch vụ
+        int rows = (int)Math.Ceiling(services.Count / (double)cols);
+        int neededHeight = 145 + rows * (btnHeight + vGap) + 70;
+        this.Size = new Size(this.Width, Math.Min(neededHeight, 750));
+        lblStatus.Location = new Point(10, this.ClientSize.Height - 38);
+        lblStatus.Size = new Size(this.ClientSize.Width - 20, 24);
+    }
 
-        btnGetTicket.Enabled = false;
-        string selectedServiceName = cbxServices.SelectedItem.ToString()!;
-        int serviceId = _serviceMap[selectedServiceName];
+    private async void ServiceButton_Click(object? sender, EventArgs e)
+    {
+        if (sender is not Button btn) return;
+        int serviceId = (int)btn.Tag!;
+        string serviceName = btn.Text.Contains('\n') ? btn.Text.Split('\n')[1] : btn.Text;
+
+        // Vô hiệu hóa tất cả nút trong khi xử lý
+        foreach (Control c in pnlServiceButtons.Controls)
+            c.Enabled = false;
+
+        lblStatus.Text = "⏳ Đang lấy số thứ tự...";
+        lblStatus.ForeColor = Color.FromArgb(100, 116, 139);
 
         try
         {
-            var payload = new { serviceId = serviceId, guestName = txtGuestName.Text.Trim() };
+            var payload = new { serviceId = serviceId, guestName = "Khách" };
             var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
 
             var response = await _httpClient.PostAsync("http://localhost:5000/api/tickets/guest", content);
-            
+
             if (response.IsSuccessStatusCode)
             {
                 var resultString = await response.Content.ReadAsStringAsync();
                 var doc = JsonDocument.Parse(resultString);
-                
-                string ticketNum = doc.RootElement.GetProperty("ticketNumber").GetString() ?? "";
-                string serviceName = doc.RootElement.GetProperty("serviceName").GetString() ?? "";
-                int estimatedWait = doc.RootElement.GetProperty("estimatedWait").GetInt32();
-                
-                // Show Ticket info
-                string msg = $"LẤY SỐ THÀNH CÔNG!\n\nSố của bạn: {ticketNum}\nDịch vụ: {serviceName}\nĐang chờ trước bạn: {estimatedWait} người.";
-                MessageBox.Show(msg, "In Số Thành Công", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                
-                txtGuestName.Text = "";
-                SendToArduino($"MSG:So cua ban: {ticketNum}");
+
+                string ticketNum = doc.RootElement.GetProperty("ticketNumber").GetString() ?? "???";
+                string svcName = doc.RootElement.TryGetProperty("serviceName", out var sn) ? sn.GetString() ?? serviceName : serviceName;
+                int estimatedWait = doc.RootElement.TryGetProperty("estimatedWait", out var ew) ? ew.GetInt32() : 0;
+
+                // Hiển thị form xác nhận lấy số
+                ShowTicketResult(ticketNum, svcName, estimatedWait);
+
+                lblStatus.Text = "✅ Lấy số thành công!";
+                lblStatus.ForeColor = Color.FromArgb(22, 163, 74);
             }
             else
             {
                 var error = await response.Content.ReadAsStringAsync();
                 MessageBox.Show("Lỗi lấy số: " + error, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                lblStatus.Text = "❌ Có lỗi xảy ra khi lấy số.";
+                lblStatus.ForeColor = Color.Crimson;
             }
         }
         catch (Exception ex)
         {
             MessageBox.Show("Lỗi kết nối: " + ex.Message, "Lỗi", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            lblStatus.Text = "❌ Lỗi kết nối máy chủ.";
+            lblStatus.ForeColor = Color.Crimson;
         }
         finally
         {
-            btnGetTicket.Enabled = true;
+            foreach (Control c in pnlServiceButtons.Controls)
+                c.Enabled = true;
         }
     }
 
-    // ── COM PORT LOGIC (Physical Button Trigger) ──────────────────────
-
-    private void BtnConnectCom_Click(object? sender, EventArgs e)
+    private void ShowTicketResult(string ticketNumber, string serviceName, int waitCount)
     {
-        if (_serialPort != null && _serialPort.IsOpen)
+        using var dlg = new Form
         {
-            _serialPort.Close();
-            btnConnectCom.Text = "Kết nối";
-            lblStatus.Text = "Đã ngắt kết nối Arduino.";
-            return;
-        }
+            Text = "LẤY SỐ THÀNH CÔNG",
+            Size = new Size(560, 450),
+            StartPosition = FormStartPosition.CenterParent,
+            FormBorderStyle = FormBorderStyle.FixedDialog,
+            MaximizeBox = false,
+            MinimizeBox = false,
+            BackColor = Color.White
+        };
 
-        if (cbxComPorts.SelectedItem == null)
+        var lblCheck = new Label
         {
-            MessageBox.Show("Vui lòng chọn cổng COM!");
-            return;
-        }
+            Text = "✔",
+            Font = new Font("Segoe UI", 60, FontStyle.Bold),
+            ForeColor = Color.FromArgb(22, 163, 74),
+            Size = new Size(540, 100),
+            Location = new Point(10, 15),
+            TextAlign = ContentAlignment.MiddleCenter
+        };
 
-        try
+        var lblNum = new Label
         {
-            _serialPort = new SerialPort(cbxComPorts.SelectedItem.ToString()!, 9600);
-            _serialPort.DataReceived += SerialPort_DataReceived;
-            _serialPort.Open();
-            btnConnectCom.Text = "Ngắt kết nối";
-            lblStatus.Text = $"Đã kết nối {_serialPort.PortName}";
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show("Lỗi kết nối COM: " + ex.Message);
-        }
-    }
+            Text = ticketNumber,
+            Font = new Font("Segoe UI", 72, FontStyle.Bold),
+            ForeColor = Color.FromArgb(30, 64, 175),
+            Size = new Size(540, 110),
+            Location = new Point(10, 110),
+            TextAlign = ContentAlignment.MiddleCenter
+        };
 
-    private void SerialPort_DataReceived(object sender, SerialDataReceivedEventArgs e)
-    {
-        try
+        var lblInfo = new Label
         {
-            var data = _serialPort!.ReadLine().Trim();
-            // Không còn dùng nút bấm trên Arduino, chỉ để trống.
-        }
-        catch { }
-    }
+            Text = $"Dịch vụ: {serviceName}\nĐang chờ trước bạn: {waitCount} người",
+            Font = new Font("Segoe UI", 14),
+            ForeColor = Color.FromArgb(71, 85, 105),
+            Size = new Size(520, 70),
+            Location = new Point(20, 225),
+            TextAlign = ContentAlignment.MiddleCenter
+        };
 
-    private void SendToArduino(string command)
-    {
-        if (_serialPort != null && _serialPort.IsOpen)
+        var btnClose = new Button
         {
-            try
-            {
-                _serialPort.WriteLine(command);
-            }
-            catch { }
-        }
+            Text = "ĐÓNG",
+            Font = new Font("Segoe UI", 14, FontStyle.Bold),
+            ForeColor = Color.White,
+            BackColor = Color.FromArgb(30, 64, 175),
+            FlatStyle = FlatStyle.Flat,
+            Size = new Size(480, 55),
+            Location = new Point(30, 345),
+            Cursor = Cursors.Hand
+        };
+        btnClose.FlatAppearance.BorderSize = 0;
+        btnClose.Click += (s, e) => dlg.Close();
+
+        dlg.Controls.AddRange(new Control[] { lblCheck, lblNum, lblInfo, btnClose });
+        dlg.ShowDialog(this);
     }
 
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
-        if (_serialPort != null && _serialPort.IsOpen)
-            _serialPort.Close();
-        
+        _httpClient.Dispose();
         base.OnFormClosing(e);
     }
 }
