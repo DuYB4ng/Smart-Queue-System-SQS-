@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:signalr_netcore/signalr_client.dart';
 
+import 'theme/app_theme.dart';
+import 'services/auth_service.dart';
+import 'screens/login_screen.dart';
+
 void main() {
   runApp(const SQSMobileApp());
 }
@@ -14,18 +18,59 @@ class SQSMobileApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'SQS Mobile',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
-        useMaterial3: true,
-      ),
-      home: const TicketTrackerPage(),
+      theme: buildAppTheme(),
+      home: const AuthGate(),
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
+/// Cổng vào app: chưa đăng nhập -> LoginScreen, đã đăng nhập (hoặc chọn
+/// "khách") -> TicketTrackerPage. Giữ state ở đây (session-only, mất khi
+/// tắt app) — nếu cần nhớ đăng nhập lâu dài, thêm shared_preferences sau.
+class AuthGate extends StatefulWidget {
+  const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  AuthResult? _authResult;
+  bool _asGuest = false;
+
+  void _handleLogout() {
+    setState(() {
+      _authResult = null;
+      _asGuest = false;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_authResult != null || _asGuest) {
+      return TicketTrackerPage(
+        authResult: _authResult,
+        onLogout: _handleLogout,
+      );
+    }
+
+    return LoginScreen(
+      onLoginSuccess: (result) => setState(() => _authResult = result),
+      onContinueAsGuest: () => setState(() => _asGuest = true),
+    );
+  }
+}
+
 class TicketTrackerPage extends StatefulWidget {
-  const TicketTrackerPage({super.key});
+  final AuthResult? authResult;
+  final VoidCallback onLogout;
+
+  const TicketTrackerPage({
+    super.key,
+    required this.authResult,
+    required this.onLogout,
+  });
 
   @override
   State<TicketTrackerPage> createState() => _TicketTrackerPageState();
@@ -33,15 +78,24 @@ class TicketTrackerPage extends StatefulWidget {
 
 class _TicketTrackerPageState extends State<TicketTrackerPage> {
   final TextEditingController _ticketIdController = TextEditingController();
-  
+
   HubConnection? _hubConnection;
   bool _isConnected = false;
-  
+
   Map<String, dynamic>? _ticketData;
   String _statusMessage = 'Nhập Ticket ID của bạn (ví dụ: 1, 2, ...)';
   bool _isLoading = false;
 
   final String _baseUrl = 'http://10.0.2.2:5000'; // 10.0.2.2 is localhost for Android Emulator
+
+  bool get _isLoggedIn => widget.authResult != null;
+
+  /// Header dùng cho các API cần xác thực (khi bạn nối thêm
+  /// GET /tickets/{id}/status, POST /tickets, v.v.)
+  Map<String, String> get _authHeaders => {
+        'Content-Type': 'application/json',
+        if (_isLoggedIn) 'Authorization': 'Bearer ${widget.authResult!.token}',
+      };
 
   @override
   void initState() {
@@ -57,7 +111,7 @@ class _TicketTrackerPageState extends State<TicketTrackerPage> {
 
     _hubConnection?.onclose(({error}) {
       setState(() => _isConnected = false);
-      print("SignalR Connection Closed");
+      debugPrint("SignalR Connection Closed");
     });
 
     _hubConnection?.on('TicketStatusChanged', _handleTicketStatusChanged);
@@ -65,22 +119,22 @@ class _TicketTrackerPageState extends State<TicketTrackerPage> {
     try {
       await _hubConnection?.start();
       setState(() => _isConnected = true);
-      print("SignalR Connected!");
+      debugPrint("SignalR Connected!");
     } catch (e) {
-      print("SignalR Connection Error: $e");
+      debugPrint("SignalR Connection Error: $e");
     }
   }
 
   void _handleTicketStatusChanged(List<Object?>? arguments) {
     if (arguments == null || arguments.isEmpty) return;
-    
+
     final data = arguments.first as Map<String, dynamic>;
-    
+
     // Only update if it's the ticket we're currently tracking
     if (_ticketData != null && data['ticketId'] == _ticketData!['ticketId']) {
       setState(() {
         _ticketData!['status'] = data['newStatus'];
-        
+
         if (data['newStatus'] == 'Calling') {
           _statusMessage = data['message'] ?? 'Đến quầy ${data['counterName']} ngay!';
         } else if (data['newStatus'] == 'Completed') {
@@ -113,17 +167,9 @@ class _TicketTrackerPageState extends State<TicketTrackerPage> {
         await _hubConnection?.invoke('LeaveGroup', args: ['ticket-${_ticketData!['ticketId']}']);
       }
 
-      // We should ideally have an API endpoint to GET ticket details by ID.
-      // Since Phase 4 only has POST /api/tickets/guest, we might need a GET endpoint.
-      // Assuming GET /api/tickets/{id} exists or we simulate it.
-      // For this implementation plan, we just assume the API exists or we rely completely on SignalR.
-      
-      // Since we don't have a GET /api/tickets/{id} explicitly defined in earlier phases,
-      // we'll just join the SignalR group and show a waiting state.
-      
       if (_isConnected) {
         await _hubConnection?.invoke('JoinGroup', args: ['ticket-$ticketId']);
-        
+
         setState(() {
           _ticketData = {
             'ticketId': ticketId,
@@ -149,6 +195,7 @@ class _TicketTrackerPageState extends State<TicketTrackerPage> {
   @override
   void dispose() {
     _hubConnection?.stop();
+    _ticketIdController.dispose();
     super.dispose();
   }
 
@@ -156,14 +203,25 @@ class _TicketTrackerPageState extends State<TicketTrackerPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Theo dõi Xếp hàng', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: Text(
+          _isLoggedIn ? 'Xin chào, ${widget.authResult!.name}' : 'Theo dõi Xếp hàng (Khách)',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+          overflow: TextOverflow.ellipsis,
+        ),
+        backgroundColor: AppColors.bgPrimary,
+        foregroundColor: AppColors.textPrimary,
+        elevation: 0,
         actions: [
           Icon(
             _isConnected ? Icons.wifi : Icons.wifi_off,
-            color: _isConnected ? Colors.green : Colors.red,
+            color: _isConnected ? AppColors.success : AppColors.danger,
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 12),
+          IconButton(
+            icon: const Icon(Icons.logout),
+            tooltip: _isLoggedIn ? 'Đăng xuất' : 'Rời chế độ khách',
+            onPressed: widget.onLogout,
+          ),
         ],
       ),
       body: Padding(
@@ -171,15 +229,25 @@ class _TicketTrackerPageState extends State<TicketTrackerPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const Icon(Icons.confirmation_number_outlined, size: 80, color: Colors.indigo),
-            const SizedBox(height: 24),
+            Container(
+              width: 96,
+              height: 96,
+              alignment: Alignment.center,
+              decoration: const BoxDecoration(
+                gradient: AppColors.accentGradient,
+                shape: BoxShape.circle,
+              ),
+              margin: const EdgeInsets.only(bottom: 8),
+              child: const Icon(Icons.confirmation_number_rounded, size: 44, color: Colors.white),
+            ),
+            const SizedBox(height: 16),
             TextField(
               controller: _ticketIdController,
               keyboardType: TextInputType.number,
+              style: const TextStyle(color: AppColors.textPrimary),
               decoration: InputDecoration(
                 labelText: 'Nhập Ticket ID của bạn',
-                border: const OutlineInputBorder(),
-                prefixIcon: const Icon(Icons.search),
+                prefixIcon: const Icon(Icons.search, color: AppColors.textSecondary),
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.arrow_forward),
                   onPressed: _isLoading ? null : _trackTicket,
@@ -188,36 +256,41 @@ class _TicketTrackerPageState extends State<TicketTrackerPage> {
               onSubmitted: (_) => _isLoading ? null : _trackTicket(),
             ),
             const SizedBox(height: 32),
-            
+
             if (_ticketData != null) ...[
-              Card(
-                elevation: 4,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                child: Padding(
-                  padding: const EdgeInsets.all(24.0),
-                  child: Column(
-                    children: [
-                      Text(
-                        'TICKET ID: ${_ticketData!['ticketId']}',
-                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.indigo),
+              Container(
+                padding: const EdgeInsets.all(24.0),
+                decoration: BoxDecoration(
+                  color: AppColors.cardBg,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  children: [
+                    Text(
+                      'TICKET ID: ${_ticketData!['ticketId']}',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.accentSecondary,
                       ),
-                      const Divider(height: 32),
-                      _buildStatusIcon(),
-                      const SizedBox(height: 16),
-                      Text(
-                        _statusMessage,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(fontSize: 18),
-                      ),
-                    ],
-                  ),
+                    ),
+                    const Divider(height: 32, color: AppColors.border),
+                    _buildStatusIcon(),
+                    const SizedBox(height: 16),
+                    Text(
+                      _statusMessage,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 18, color: AppColors.textPrimary),
+                    ),
+                  ],
                 ),
               )
             ] else ...[
               Text(
                 _statusMessage,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: Colors.grey, fontSize: 16),
+                style: const TextStyle(color: AppColors.textSecondary, fontSize: 16),
               ),
             ]
           ],
@@ -228,21 +301,24 @@ class _TicketTrackerPageState extends State<TicketTrackerPage> {
 
   Widget _buildStatusIcon() {
     final status = _ticketData?['status'] ?? '';
-    
+
     if (status == 'Calling') {
       return const Column(
         children: [
           Icon(Icons.campaign, size: 64, color: Colors.orange),
           SizedBox(height: 8),
-          Text('ĐẾN LƯỢT CỦA BẠN!', style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 20)),
+          Text(
+            'ĐẾN LƯỢT CỦA BẠN!',
+            style: TextStyle(color: Colors.orange, fontWeight: FontWeight.bold, fontSize: 20),
+          ),
         ],
       );
     } else if (status == 'Completed') {
-      return const Icon(Icons.check_circle, size: 64, color: Colors.green);
+      return const Icon(Icons.check_circle, size: 64, color: AppColors.success);
     } else if (status == 'Canceled') {
-      return const Icon(Icons.cancel, size: 64, color: Colors.red);
+      return const Icon(Icons.cancel, size: 64, color: AppColors.danger);
     } else {
-      return const CircularProgressIndicator();
+      return const CircularProgressIndicator(color: AppColors.accentPrimary);
     }
   }
 }
