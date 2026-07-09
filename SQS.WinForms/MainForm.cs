@@ -275,62 +275,122 @@ public partial class MainForm : Form
 
     private void ShowTicketResult(string ticketNumber, string serviceName, int waitCount)
     {
+        // Phát âm thanh máy in (Tùy chọn: dùng tiếng Beep ngắn liên tục mô phỏng)
+        System.Threading.Tasks.Task.Run(() => {
+            for(int i=0; i<3; i++) { Console.Beep(4000, 50); System.Threading.Thread.Sleep(50); }
+        });
+
         using var dlg = new Form
         {
-            Text = "LẤY SỐ THÀNH CÔNG",
-            Size = new Size(560, 450),
+            Text = "PHIẾU LẤY SỐ",
+            Size = new Size(350, 550),
             StartPosition = FormStartPosition.CenterParent,
-            FormBorderStyle = FormBorderStyle.FixedDialog,
-            MaximizeBox = false,
-            MinimizeBox = false,
-            BackColor = Color.White
+            FormBorderStyle = FormBorderStyle.None, // Bỏ viền để giống tờ giấy
+            BackColor = Color.White,
+            ShowInTaskbar = false
         };
 
-        var lblCheck = new Label
+        // Panel viền đen đứt nét tạo cảm giác phiếu in
+        var pnlReceipt = new Panel
         {
-            Text = "✔",
-            Font = new Font("Segoe UI", 60, FontStyle.Bold),
-            ForeColor = Color.FromArgb(22, 163, 74),
-            Size = new Size(540, 100),
-            Location = new Point(10, 15),
+            Size = new Size(330, 530),
+            Location = new Point(10, 10),
+            BorderStyle = BorderStyle.FixedSingle,
+            BackColor = Color.White
+        };
+        dlg.Controls.Add(pnlReceipt);
+
+        var lblHeader = new Label
+        {
+            Text = "TRUNG TÂM HÀNH CHÍNH\nSMART QUEUE SYSTEM",
+            Font = new Font("Courier New", 14, FontStyle.Bold),
+            Size = new Size(310, 50),
+            Location = new Point(10, 20),
+            TextAlign = ContentAlignment.MiddleCenter
+        };
+
+        var lblDivider1 = new Label { Text = "--------------------------------", Font = new Font("Courier New", 12), Location = new Point(10, 75), Size = new Size(310, 20), TextAlign = ContentAlignment.MiddleCenter };
+
+        var lblService = new Label
+        {
+            Text = serviceName.ToUpper(),
+            Font = new Font("Courier New", 12, FontStyle.Bold),
+            Size = new Size(310, 30),
+            Location = new Point(10, 105),
             TextAlign = ContentAlignment.MiddleCenter
         };
 
         var lblNum = new Label
         {
             Text = ticketNumber,
-            Font = new Font("Segoe UI", 72, FontStyle.Bold),
-            ForeColor = Color.FromArgb(30, 64, 175),
-            Size = new Size(540, 110),
-            Location = new Point(10, 110),
+            Font = new Font("Arial", 60, FontStyle.Bold),
+            Size = new Size(310, 100),
+            Location = new Point(10, 140),
             TextAlign = ContentAlignment.MiddleCenter
         };
 
-        var lblInfo = new Label
+        var lblDivider2 = new Label { Text = "--------------------------------", Font = new Font("Courier New", 12), Location = new Point(10, 250), Size = new Size(310, 20), TextAlign = ContentAlignment.MiddleCenter };
+
+        var lblTime = new Label
         {
-            Text = $"Dịch vụ: {serviceName}\nĐang chờ trước bạn: {waitCount} người",
-            Font = new Font("Segoe UI", 14),
-            ForeColor = Color.FromArgb(71, 85, 105),
-            Size = new Size(520, 70),
-            Location = new Point(20, 225),
+            Text = $"Thời gian: {DateTime.Now:dd/MM/yyyy HH:mm}",
+            Font = new Font("Courier New", 10),
+            Size = new Size(310, 25),
+            Location = new Point(10, 280),
+            TextAlign = ContentAlignment.MiddleCenter
+        };
+
+        var lblWait = new Label
+        {
+            Text = $"Đang chờ trước bạn: {waitCount} người",
+            Font = new Font("Courier New", 10, FontStyle.Bold),
+            Size = new Size(310, 25),
+            Location = new Point(10, 310),
+            TextAlign = ContentAlignment.MiddleCenter
+        };
+
+        var lblFooter = new Label
+        {
+            Text = "Vui lòng chú ý lắng nghe\nthông báo từ hệ thống loa.",
+            Font = new Font("Courier New", 10, FontStyle.Italic),
+            Size = new Size(310, 50),
+            Location = new Point(10, 350),
             TextAlign = ContentAlignment.MiddleCenter
         };
 
         var btnClose = new Button
         {
-            Text = "ĐÓNG",
-            Font = new Font("Segoe UI", 14, FontStyle.Bold),
+            Text = "XÉ PHIẾU (ĐÓNG)",
+            Font = new Font("Arial", 12, FontStyle.Bold),
             ForeColor = Color.White,
-            BackColor = Color.FromArgb(30, 64, 175),
+            BackColor = Color.Black,
             FlatStyle = FlatStyle.Flat,
-            Size = new Size(480, 55),
-            Location = new Point(30, 345),
+            Size = new Size(290, 50),
+            Location = new Point(20, 450),
             Cursor = Cursors.Hand
         };
         btnClose.FlatAppearance.BorderSize = 0;
         btnClose.Click += (s, e) => dlg.Close();
 
-        dlg.Controls.AddRange(new Control[] { lblCheck, lblNum, lblInfo, btnClose });
+        pnlReceipt.Controls.AddRange(new Control[] { 
+            lblHeader, lblDivider1, lblService, lblNum, lblDivider2, lblTime, lblWait, lblFooter, btnClose 
+        });
+
+        // Hiệu ứng trượt lên (Slide up) mô phỏng máy in
+        System.Windows.Forms.Timer t = new System.Windows.Forms.Timer { Interval = 15 };
+        int targetY = (this.ClientSize.Height - dlg.Height) / 2;
+        dlg.StartPosition = FormStartPosition.Manual;
+        dlg.Location = new Point(this.Location.X + (this.Width - dlg.Width) / 2, this.Location.Y + this.Height);
+
+        t.Tick += (s, e) => {
+            if (dlg.Location.Y > this.Location.Y + targetY) {
+                dlg.Location = new Point(dlg.Location.X, dlg.Location.Y - 20);
+            } else {
+                t.Stop();
+            }
+        };
+
+        dlg.Load += (s, e) => t.Start();
         dlg.ShowDialog(this);
     }
 
