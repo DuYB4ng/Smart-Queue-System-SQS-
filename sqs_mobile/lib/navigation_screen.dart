@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'theme/app_theme.dart';
 import 'services/auth_service.dart';
-import 'main.dart'; // để dùng lại TicketTrackerPage
 import 'screens/take_number_screen.dart';
+import 'screens/my_tickets_screen.dart';
 import 'screens/profile_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
@@ -28,8 +28,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
       // Tab 0: Lấy số
       TakeNumberScreen(authResult: widget.authResult),
 
-      // Tab 1: Xem trạng thái
-      TicketTrackerPage(
+      // Tab 1: Vé của tôi (danh sách vé + trạng thái realtime)
+      MyTicketsScreen(
         authResult: widget.authResult,
         onLogout: widget.onLogout,
       ),
