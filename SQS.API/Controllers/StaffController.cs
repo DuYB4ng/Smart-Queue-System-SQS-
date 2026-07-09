@@ -100,6 +100,10 @@ public class StaffController : ControllerBase
         {
             return Forbid();
         }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { message = ex.Message + "\n" + ex.StackTrace });
+        }
     }
 
     // ── POST /api/staff/skip/{id} ──────────────────────────────────
@@ -205,5 +209,27 @@ public class StaffController : ControllerBase
     {
         var appointments = await _ticketService.GetAppointmentsAsync(serviceId, date);
         return Ok(appointments);
+    }
+
+    // ── POST /api/staff/call-appointment/{id} ──────────────────────
+
+    /// <summary>Gọi đích danh một lịch hẹn (Chuyển trạng thái từ Waiting -> Calling).</summary>
+    [HttpPost("call-appointment/{id:int}")]
+    public async Task<IActionResult> CallAppointment(int id)
+    {
+        try
+        {
+            var staffId = JwtService.GetUserId(User);
+            var response = await _ticketService.CallAppointmentAsync(id, staffId);
+            return Ok(response);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 }

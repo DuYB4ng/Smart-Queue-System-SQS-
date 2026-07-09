@@ -266,12 +266,15 @@ public class TicketService
 
     public async Task<TicketStatusResponse?> GetCurrentTicketForStaffAsync(int staffId)
     {
+        var staff = await _db.Staffs.FirstOrDefaultAsync(s => s.UserId == staffId);
+        if (staff == null || staff.CounterId == null) return null;
+
         var ticket = await _db.Tickets
             .Include(t => t.Customer)
                 .ThenInclude(c => c!.User)
             .Include(t => t.Service)
             .Include(t => t.Counter)
-            .Where(t => t.IdStaff == staffId && t.Status == TicketStatus.Calling)
+            .Where(t => t.IdCounter == staff.CounterId && t.Status == TicketStatus.Calling)
             .OrderByDescending(t => t.CalledAt)
             .FirstOrDefaultAsync();
 
@@ -495,6 +498,47 @@ public class TicketService
         };
     }
 
+    // ── CALL SPECIFIC APPOINTMENT ──────────────────────────────────
+
+    public async Task<CallNextResponse> CallAppointmentAsync(int ticketId, int staffId)
+    {
+        var staff = await _db.Staffs.FirstOrDefaultAsync(s => s.UserId == staffId);
+        if (staff is null || staff.CounterId is null)
+            throw new KeyNotFoundException("Không tìm thấy thông tin quầy của nhân viên.");
+
+        // Kiểm tra xem nhân viên có đang phục vụ ai khác không
+        var currentTicket = await _db.Tickets
+            .FirstOrDefaultAsync(t => t.IdStaff == staffId && t.Status == TicketStatus.Calling);
+        if (currentTicket != null)
+            throw new InvalidOperationException("Bạn phải hoàn thành phiên hiện tại trước khi gọi khách khác.");
+
+        var ticket = await _db.Tickets
+            .Include(t => t.Service)
+            .Include(t => t.Customer)
+            .FirstOrDefaultAsync(t => t.Id == ticketId && t.TicketType == TicketType.Appointment);
+
+        if (ticket == null)
+            throw new KeyNotFoundException("Không tìm thấy lịch hẹn này.");
+
+        if (ticket.Status != TicketStatus.Waiting)
+            throw new InvalidOperationException($"Không thể gọi lịch hẹn đang ở trạng thái {ticket.Status}");
+
+        ticket.Status    = TicketStatus.Calling;
+        ticket.IdStaff   = staffId;
+        ticket.IdCounter = staff.CounterId;
+        ticket.CalledAt  = DateTime.Now;
+
+        await _db.SaveChangesAsync();
+
+        return new CallNextResponse
+        {
+            TicketId     = ticket.Id,
+            TicketNumber = ticket.TicketNumber ?? "APP-" + ticket.Id,
+            ServiceName  = ticket.Service.Name,
+            CustomerName = ticket.GuestName ?? ticket.Customer?.User?.Name ?? "Khách"
+        };
+    }
+
     // ── COMPLETE (Hoàn thành) ──────────────────────────────────────
 
     /// <summary>
@@ -509,15 +553,16 @@ public class TicketService
         if (ticket.Status != TicketStatus.Calling)
             throw new InvalidOperationException("Chỉ có thể hoàn thành phiên đang ở trạng thái 'Calling'.");
 
-        if (ticket.IdStaff != staffId)
-            throw new UnauthorizedAccessException("Bạn không có quyền hoàn thành phiên này.");
+        var staff = await _db.Staffs.FindAsync(staffId)
+            ?? throw new KeyNotFoundException("Không tìm thấy thông tin nhân viên.");
+
+        if (ticket.IdCounter != staff.CounterId)
+            throw new InvalidOperationException($"Bạn không có quyền thao tác trên phiên này vì nó thuộc quầy khác. (Ticket.IdCounter={ticket.IdCounter}, Staff.CounterId={staff.CounterId})");
 
         ticket.Status      = TicketStatus.Completed;
         ticket.CompletedAt = DateTime.Now;
 
         // Cộng KPI
-        var staff = await _db.Staffs.FindAsync(staffId)
-            ?? throw new KeyNotFoundException("Không tìm thấy thông tin nhân viên.");
         staff.Kpi += 1;
 
         await _db.SaveChangesAsync();
@@ -548,8 +593,11 @@ public class TicketService
         if (ticket.Status != TicketStatus.Calling)
             throw new InvalidOperationException("Chỉ có thể bỏ qua phiên đang ở trạng thái 'Calling'.");
 
-        if (ticket.IdStaff != staffId)
-            throw new UnauthorizedAccessException("Bạn không có quyền bỏ qua phiên này.");
+        var staff = await _db.Staffs.FindAsync(staffId)
+            ?? throw new KeyNotFoundException("Không tìm thấy thông tin nhân viên.");
+
+        if (ticket.IdCounter != staff.CounterId)
+            throw new InvalidOperationException($"Bạn không có quyền thao tác trên phiên này vì nó thuộc quầy khác. (Ticket.IdCounter={ticket.IdCounter}, Staff.CounterId={staff.CounterId})");
 
         ticket.Status = TicketStatus.Canceled;
         await _db.SaveChangesAsync();
