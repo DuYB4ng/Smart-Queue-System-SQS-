@@ -6,6 +6,7 @@ import 'package:signalr_netcore/signalr_client.dart';
 import 'theme/app_theme.dart';
 import 'services/auth_service.dart';
 import 'screens/login_screen.dart';
+import 'navigation_screen.dart';
 
 void main() {
   runApp(const SQSMobileApp());
@@ -49,7 +50,7 @@ class _AuthGateState extends State<AuthGate> {
   @override
   Widget build(BuildContext context) {
     if (_authResult != null || _asGuest) {
-      return TicketTrackerPage(
+      return MainNavigationScreen(
         authResult: _authResult,
         onLogout: _handleLogout,
       );
@@ -212,17 +213,14 @@ class _TicketTrackerPageState extends State<TicketTrackerPage> {
         foregroundColor: AppColors.textPrimary,
         elevation: 0,
         actions: [
-          Icon(
-            _isConnected ? Icons.wifi : Icons.wifi_off,
-            color: _isConnected ? AppColors.success : AppColors.danger,
-          ),
-          const SizedBox(width: 12),
-          IconButton(
-            icon: const Icon(Icons.logout),
-            tooltip: _isLoggedIn ? 'Đăng xuất' : 'Rời chế độ khách',
-            onPressed: widget.onLogout,
-          ),
-        ],
+  Padding(
+    padding: const EdgeInsets.only(right: 16),
+    child: Icon(
+      _isConnected ? Icons.wifi : Icons.wifi_off,
+      color: _isConnected ? AppColors.success : AppColors.danger,
+    ),
+  ),
+],
       ),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
