@@ -10,6 +10,7 @@ import CustomerLayout from './components/CustomerLayout';
 import RegisterTicketPage from './pages/RegisterTicketPage';
 import MyTicketsPage from './pages/MyTicketsPage';
 import ProfilePage from './pages/ProfilePage';
+import PreRegisteredPage from './pages/PreRegisteredPage';
 function App() {
   const [user, setUser] = useState(() => {
     const token = localStorage.getItem('token');
@@ -23,7 +24,7 @@ function App() {
         const decoded = JSON.parse(jsonPayload);
         
         return {
-          id: decoded.nameid || decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"],
+          id: decoded.sub || decoded.nameid || decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"],
           name: decoded.name || decoded["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"],
           role: decoded.role || decoded["http://schemas.microsoft.com/ws/2008/06/identity/claims/role"]
         };
@@ -67,6 +68,12 @@ function App() {
         <Route path="/staff" element={
           user && user.role === 'Staff' 
             ? <StaffPage user={user} onLogout={handleLogout} /> 
+            : <Navigate to="/login" />
+        } />
+        
+        <Route path="/staff/pre-registered" element={
+          user && user.role === 'Staff' 
+            ? <PreRegisteredPage user={user} onLogout={handleLogout} /> 
             : <Navigate to="/login" />
         } />
         

@@ -10,10 +10,12 @@ const Navbar = ({ title, user, onLogout }) => {
       </div>
       
       <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        <Link to="/" style={{ color: 'var(--text-secondary)' }}>Kiosk</Link>
-        <Link to="/display" style={{ color: 'var(--text-secondary)' }}>Display</Link>
-        <Link to="/staff" style={{ color: 'var(--text-secondary)' }}>Staff</Link>
-        <Link to="/admin" style={{ color: 'var(--text-secondary)' }}>Admin</Link>
+        {user?.role === 'Staff' && (
+          <>
+            <Link to="/staff" style={{ color: 'var(--text-secondary)' }}>Gọi số (Tại quầy)</Link>
+            <Link to="/staff/pre-registered" style={{ color: 'var(--text-secondary)' }}>Xử lý đặt trước</Link>
+          </>
+        )}
         
         {user ? (
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginLeft: '1rem', borderLeft: '1px solid var(--border-light)', paddingLeft: '1rem' }}>
