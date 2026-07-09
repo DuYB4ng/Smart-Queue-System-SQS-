@@ -184,6 +184,113 @@ public class TicketService
             .ToListAsync();
     }
 
+    // ── GET MY TICKETS ─────────────────────────────────────────────
+
+    public async Task<List<TicketStatusResponse>> GetMyTicketsAsync(int customerId)
+    {
+        var tickets = await _db.Tickets
+            .Include(t => t.Service)
+            .Include(t => t.Counter)
+            .Where(t => t.IdCustomer == customerId)
+            .OrderByDescending(t => t.CreatedAt)
+            .ToListAsync();
+
+        var result = new List<TicketStatusResponse>();
+        var today = DateTime.Now.Date;
+
+        foreach (var ticket in tickets)
+        {
+            int? queuePosition = null;
+            if (ticket.Status == TicketStatus.Waiting && ticket.TicketType == TicketType.WalkIn && ticket.TicketDate == today)
+            {
+                queuePosition = await _db.Tickets
+                    .Where(t => t.IdService == ticket.IdService
+                             && t.Status == TicketStatus.Waiting
+                             && t.TicketType == TicketType.WalkIn
+                             && t.TicketDate == today
+                             && t.CreatedAt <= ticket.CreatedAt)
+                    .CountAsync();
+            }
+
+            result.Add(new TicketStatusResponse
+            {
+                TicketId = ticket.Id,
+                TicketNumber = ticket.TicketNumber,
+                TicketType = ticket.TicketType.ToString(),
+                ServiceName = ticket.Service.Name,
+                CounterName = ticket.Counter?.Name,
+                Status = ticket.Status.ToString(),
+                CreatedAt = ticket.CreatedAt,
+                CalledAt = ticket.CalledAt,
+                QueuePosition = queuePosition ?? 0,
+                AppointmentDate = ticket.AppointmentDate
+            });
+        }
+
+        return result;
+    }
+
+    // ── GET RECENT CALLING ─────────────────────────────────────────
+
+    public async Task<List<TicketStatusResponse>> GetRecentCallingTicketsAsync(int limit = 5)
+    {
+        var tickets = await _db.Tickets
+            .Include(t => t.Service)
+            .Include(t => t.Counter)
+            .Where(t => t.Status == TicketStatus.Calling && t.TicketDate == DateTime.Today)
+            .OrderByDescending(t => t.CalledAt)
+            .Take(limit)
+            .ToListAsync();
+
+        var result = new List<TicketStatusResponse>();
+        foreach (var ticket in tickets)
+        {
+            result.Add(new TicketStatusResponse
+            {
+                TicketId = ticket.Id,
+                TicketNumber = ticket.TicketNumber,
+                TicketType = ticket.TicketType.ToString(),
+                ServiceName = ticket.Service.Name,
+                CounterName = ticket.Counter?.Name,
+                Status = ticket.Status.ToString(),
+                CreatedAt = ticket.CreatedAt,
+                CalledAt = ticket.CalledAt,
+                QueuePosition = 0,
+                AppointmentDate = ticket.AppointmentDate
+            });
+        }
+        return result;
+    }
+
+    // ── GET CURRENT TICKET FOR STAFF ───────────────────────────────
+
+    public async Task<TicketStatusResponse?> GetCurrentTicketForStaffAsync(int staffId)
+    {
+        var ticket = await _db.Tickets
+            .Include(t => t.Customer)
+                .ThenInclude(c => c!.User)
+            .Include(t => t.Service)
+            .Include(t => t.Counter)
+            .Where(t => t.IdStaff == staffId && t.Status == TicketStatus.Calling)
+            .OrderByDescending(t => t.CalledAt)
+            .FirstOrDefaultAsync();
+
+        if (ticket == null) return null;
+
+        return new TicketStatusResponse
+        {
+            TicketId      = ticket.Id,
+            TicketNumber  = ticket.TicketNumber ?? "---",
+            CustomerName  = ticket.Customer?.User?.Name ?? ticket.GuestName ?? "Khách",
+            Status        = ticket.Status.ToString(),
+            ServiceName   = ticket.Service?.Name,
+            CounterName   = ticket.Counter?.Name,
+            CreatedAt     = ticket.CreatedAt,
+            CalledAt      = ticket.CalledAt,
+            QueuePosition = 0
+        };
+    }
+
     // ── GET STATUS ─────────────────────────────────────────────────
 
     /// <summary>Khách hàng xem trạng thái số của mình.</summary>

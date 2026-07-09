@@ -13,7 +13,8 @@ const StaffPage = ({ user, onLogout }) => {
   const [error, setError] = useState(null);
   
   // Dynamic counterId based on user ID (Staff1..5 have User ID 2..6 and map to Counters 1..5)
-  const counterId = user ? (parseInt(user.id) - 1) : 1;
+  const uId = user ? (user.id || user.Id || 2) : 2;
+  const counterId = parseInt(uId) - 1;
   const serviceId = counterId; // Based on 1-1 mapping in database
 
   useEffect(() => {
@@ -23,6 +24,7 @@ const StaffPage = ({ user, onLogout }) => {
     }
     
     loadMyQueue();
+    loadCurrentTicket();
     
     signalRService.connect().then(() => {
       signalRService.joinGroup(`staff-${counterId}`);
@@ -47,6 +49,19 @@ const StaffPage = ({ user, onLogout }) => {
       setQueue(res.data);
     } catch (err) {
       console.error('Failed to load queue', err);
+    }
+  };
+
+  const loadCurrentTicket = async () => {
+    try {
+      const res = await api.get('/staff/current-ticket');
+      if (res.status === 200 && res.data) {
+        setCurrentTicket(res.data);
+      } else {
+        setCurrentTicket(null);
+      }
+    } catch (err) {
+      console.error('Failed to load current ticket', err);
     }
   };
 

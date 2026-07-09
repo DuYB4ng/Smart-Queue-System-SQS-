@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 import { Lock, Mail } from 'lucide-react';
 
@@ -100,6 +100,15 @@ const LoginPage = ({ onLoginSuccess }) => {
             {loading ? 'Đang xử lý...' : 'ĐĂNG NHẬP'}
           </button>
         </form>
+        
+        <div style={{ marginTop: '1.5rem', textAlign: 'center' }}>
+          <p style={{ color: 'var(--text-secondary)' }}>
+            Chưa có tài khoản?{' '}
+            <Link to="/register" style={{ color: 'var(--accent-primary)', fontWeight: 500 }}>
+              Đăng ký ngay
+            </Link>
+          </p>
+        </div>
         
         <div style={{ marginTop: '2rem', textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
           <p>Danh sách tài khoản Test:</p>

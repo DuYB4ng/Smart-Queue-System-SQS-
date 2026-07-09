@@ -239,6 +239,8 @@ CREATE INDEX idx_tickets_status_counter
 -- ============================================================
 DELIMITER $$
 
+DROP PROCEDURE IF EXISTS sp_get_next_ticket_number$$
+
 CREATE PROCEDURE sp_get_next_ticket_number(
     IN  p_date  DATE,
     OUT p_number SMALLINT UNSIGNED
@@ -346,7 +348,7 @@ INSERT INTO customers (user_id) VALUES (@c1), (@c2);
 -- ============================================================
 
 -- View: Hàng đợi hiện tại (chỉ Waiting)
-CREATE VIEW v_waiting_queue AS
+CREATE OR REPLACE VIEW v_waiting_queue AS
 SELECT
     t.id,
     t.ticket_number,
@@ -368,7 +370,7 @@ LEFT JOIN users u ON c.user_id = u.id
 WHERE t.status = 'Waiting' AND t.ticket_type = 'WalkIn';
 
 -- View: Thống kê KPI Staff hôm nay
-CREATE VIEW v_staff_kpi_today AS
+CREATE OR REPLACE VIEW v_staff_kpi_today AS
 SELECT
     u.id            AS staff_id,
     u.name          AS staff_name,
@@ -383,7 +385,7 @@ LEFT JOIN tickets t ON t.id_staff = st.user_id
 GROUP BY u.id, u.name, st.position, st.kpi;
 
 -- View: Màn hình tổng — số đang gọi
-CREATE VIEW v_currently_calling AS
+CREATE OR REPLACE VIEW v_currently_calling AS
 SELECT
     t.id,
     t.ticket_number,

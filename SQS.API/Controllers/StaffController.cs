@@ -157,6 +157,19 @@ public class StaffController : ControllerBase
         }
     }
 
+    // ── GET /api/staff/current-ticket ──────────────────────────────
+
+    /// <summary>Lấy ticket đang được phục vụ hiện tại của nhân viên.</summary>
+    [HttpGet("current-ticket")]
+    [ProducesResponseType(typeof(TicketStatusResponse), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCurrentTicket()
+    {
+        var staffId = JwtService.GetUserId(User);
+        var result = await _ticketService.GetCurrentTicketForStaffAsync(staffId);
+        if (result == null) return NoContent();
+        return Ok(result);
+    }
+
     // ── GET /api/staff/info ──────────────────────────────────
 
     /// <summary>Lấy thông tin staff hiện tại (position, counter...).</summary>

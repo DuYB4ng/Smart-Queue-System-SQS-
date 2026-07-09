@@ -76,6 +76,12 @@ class SignalRService {
   off(eventName, callback) {
     if (!this.connection) return;
     if (this.listeners.has(eventName)) {
+      if (!callback) {
+        this.connection.off(eventName);
+        this.listeners.delete(eventName);
+        return;
+      }
+      
       const callbacks = this.listeners.get(eventName);
       const filtered = callbacks.filter((cb) => cb !== callback);
       if (filtered.length === 0) {

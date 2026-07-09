@@ -145,6 +145,19 @@ public class TicketsController : ControllerBase
         }
     }
 
+    // ── GET /api/tickets/my ───────────────────────────────────────
+
+    /// <summary>Khách hàng xem danh sách vé của mình.</summary>
+    [HttpGet("my")]
+    [Authorize]
+    [ProducesResponseType(typeof(List<TicketStatusResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMyTickets()
+    {
+        var customerId = JwtService.GetUserId(User);
+        var result = await _ticketService.GetMyTicketsAsync(customerId);
+        return Ok(result);
+    }
+
     // ── GET /api/tickets/{id}/status ──────────────────────────────
 
     /// <summary>Xem trạng thái và vị trí trong hàng đợi của 1 ticket.</summary>
@@ -156,6 +169,17 @@ public class TicketsController : ControllerBase
         return result is null
             ? NotFound(new { message = "Không tìm thấy phiên xếp hàng." })
             : Ok(result);
+    }
+
+    // ── GET /api/tickets/calling ──────────────────────────────────
+
+    /// <summary>Lấy danh sách 5 số đang được gọi gần nhất (cho Display).</summary>
+    [HttpGet("calling")]
+    [ProducesResponseType(typeof(List<TicketStatusResponse>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetRecentCalling()
+    {
+        var result = await _ticketService.GetRecentCallingTicketsAsync(5);
+        return Ok(result);
     }
 
     // ── GET /api/tickets/queue?serviceId={id} ─────────────────────

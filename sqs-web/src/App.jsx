@@ -5,7 +5,11 @@ import DisplayPage from './pages/DisplayPage';
 import StaffPage from './pages/StaffPage';
 import AdminPage from './pages/AdminPage';
 import LoginPage from './pages/LoginPage';
-
+import RegisterPage from './pages/RegisterPage';
+import CustomerLayout from './components/CustomerLayout';
+import RegisterTicketPage from './pages/RegisterTicketPage';
+import MyTicketsPage from './pages/MyTicketsPage';
+import ProfilePage from './pages/ProfilePage';
 function App() {
   const [user, setUser] = useState(() => {
     const token = localStorage.getItem('token');
@@ -43,12 +47,22 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={
-          user 
-            ? <KioskPage user={user} onLogout={handleLogout} /> 
-            : <Navigate to="/login" />
-        } />
+          user && user.role === 'Customer'
+            ? <CustomerLayout user={user} onLogout={handleLogout} /> 
+            : <Navigate to={user ? (user.role === 'Admin' ? '/admin' : '/staff') : '/login'} />
+        }>
+          <Route index element={<RegisterTicketPage />} />
+          <Route path="my-tickets" element={<MyTicketsPage />} />
+          <Route path="profile" element={<ProfilePage user={user} onLogout={handleLogout} />} />
+        </Route>
+        
+        {/* Public / Kiosk routes */}
+        <Route path="/kiosk" element={<KioskPage user={user} onLogout={handleLogout} />} />
         <Route path="/display" element={<DisplayPage />} />
+        
+        {/* Auth routes */}
         <Route path="/login" element={<LoginPage onLoginSuccess={setUser} />} />
+        <Route path="/register" element={<RegisterPage />} />
         
         <Route path="/staff" element={
           user && user.role === 'Staff' 

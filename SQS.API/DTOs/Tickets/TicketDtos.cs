@@ -80,6 +80,7 @@ public class TicketStatusResponse
 {
     public int          TicketId      { get; set; }
     public string?      TicketNumber  { get; set; }
+    public string?      CustomerName  { get; set; }
     public string       TicketType    { get; set; } = "WalkIn";
     public string       ServiceName   { get; set; } = string.Empty;
     public string       Status        { get; set; } = string.Empty;
@@ -87,6 +88,7 @@ public class TicketStatusResponse
     public string?      CounterName   { get; set; }
     public DateTime?    CalledAt      { get; set; }
     public DateTime     CreatedAt     { get; set; }
+    public DateTime?    AppointmentDate { get; set; }
 }
 
 /// <summary>Response khi Staff gọi số thành công.</summary>

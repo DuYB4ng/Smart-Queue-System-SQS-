@@ -1,17 +1,17 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap');
 
 :root {
-  /* Color Palette - Dark & Premium */
-  --bg-primary: #0f1115;
-  --bg-secondary: #181b21;
-  --bg-glass: rgba(24, 27, 33, 0.7);
-  --bg-glass-hover: rgba(30, 34, 42, 0.8);
+  /* Color Palette - Light & Premium */
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-glass: rgba(255, 255, 255, 0.8);
+  --bg-glass-hover: rgba(241, 245, 249, 0.9);
   
-  --text-primary: #ffffff;
-  --text-secondary: #a1a1aa;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
   
-  --accent-primary: #6366f1;
-  --accent-secondary: #8b5cf6;
+  --accent-primary: #0f766e; /* Teal 600 */
+  --accent-secondary: #0d9488; /* Teal 500 */
   --accent-gradient: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-secondary) 100%);
   
   --success: #10b981;
@@ -19,10 +19,10 @@
   --danger: #ef4444;
   
   /* Borders & Shadows */
-  --border-light: rgba(255, 255, 255, 0.1);
-  --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
-  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.4);
-  --shadow-glow: 0 0 15px rgba(99, 102, 241, 0.3);
+  --border-light: rgba(0, 0, 0, 0.1);
+  --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  --shadow-lg: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  --shadow-glow: 0 0 15px rgba(15, 118, 110, 0.2);
   
   /* Radii */
   --radius-sm: 8px;
@@ -58,7 +58,7 @@ body::before {
   left: -10%;
   width: 50%;
   height: 50%;
-  background: radial-gradient(circle, rgba(99, 102, 241, 0.15) 0%, rgba(15, 17, 21, 0) 70%);
+  background: radial-gradient(circle, rgba(15, 118, 110, 0.15) 0%, rgba(15, 17, 21, 0) 70%);
   border-radius: 50%;
   z-index: -1;
   animation: float 15s ease-in-out infinite alternate;
@@ -71,7 +71,7 @@ body::after {
   right: -10%;
   width: 60%;
   height: 60%;
-  background: radial-gradient(circle, rgba(139, 92, 246, 0.1) 0%, rgba(15, 17, 21, 0) 70%);
+  background: radial-gradient(circle, rgba(13, 148, 136, 0.1) 0%, rgba(15, 17, 21, 0) 70%);
   border-radius: 50%;
   z-index: -1;
   animation: float 20s ease-in-out infinite alternate-reverse;
@@ -120,7 +120,7 @@ a:hover {
 
 input, select {
   font-family: inherit;
-  background: rgba(0, 0, 0, 0.2);
+  background: var(--bg-secondary);
   border: 1px solid var(--border-light);
   color: var(--text-primary);
   padding: 0.75rem 1rem;
@@ -132,7 +132,7 @@ input, select {
 input:focus, select:focus {
   outline: none;
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+  box-shadow: 0 0 0 2px rgba(15, 118, 110, 0.2);
 }
 
 /* Custom Scrollbar */
