@@ -24,7 +24,7 @@ class TakeNumberScreen extends StatefulWidget {
 
 class _TakeNumberScreenState extends State<TakeNumberScreen> {
   // 10.0.2.2 = localhost khi chạy trên Android Emulator trỏ tới máy host.
-  static const String _baseUrl = 'http://10.0.2.2:5000/api';
+  static const String _baseUrl = 'http://192.168.1.7:5000/api';
 
   // --- State dữ liệu ---
   List<Service> _services = const [];

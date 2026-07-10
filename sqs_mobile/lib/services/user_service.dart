@@ -11,7 +11,7 @@ import 'auth_service.dart'; // để dùng lại AuthException + baseUrl pattern
 ///
 /// Dùng chung baseUrl + cách xử lý lỗi với AuthService.
 class UserService {
-  static const String baseUrl = 'http://10.0.2.2:5000/api';
+  static const String baseUrl = 'http://192.168.1.7:5000/api';
 
   final String _token;
 

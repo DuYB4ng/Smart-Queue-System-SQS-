@@ -31,8 +31,8 @@ class MyTicketsScreen extends StatefulWidget {
 }
 
 class _MyTicketsScreenState extends State<MyTicketsScreen> {
-  static const String _baseUrl = 'http://10.0.2.2:5000/api';
-  static const String _hubUrl = 'http://10.0.2.2:5000/hubs/queue';
+  static const String _baseUrl = 'http://192.168.1.7:5000/api';
+  static const String _hubUrl = 'http://192.168.1.7:5000/hubs/queue';
 
   List<TicketInfo> _tickets = [];
   bool _isLoading = true;

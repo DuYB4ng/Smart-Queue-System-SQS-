@@ -40,7 +40,7 @@ class AuthException implements Exception {
 class AuthService {
   // Đồng bộ với baseUrl trong TicketTrackerPage (main.dart).
   // 10.0.2.2 = localhost khi chạy trên Android Emulator.
-  static const String baseUrl = 'http://10.0.2.2:5000/api';
+  static const String baseUrl = 'http://192.168.1.7:5000/api';
 
   Future<AuthResult> login({
     required String email,
